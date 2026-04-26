@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:convert';
 import 'dart:io';
 
 // ─────────────────────────────────────────────────────────────
@@ -257,7 +258,51 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
     );
   }
 
-  void _agregarAFavoritos() {}
+  // Quiero que la función _agregarAFavoritos(), meta el contenido de los textfields y de la ruta a la clave privada, dentro del json que hay en la ruta base del repo
+  void _agregarAFavoritos() {
+    // Recopilar la info actual del formulario
+    final configName = _nameController.text.trim();
+    final host = _hostController.text.trim();
+    final port = _portController.text.trim();
+    final keyPath = _keyFilePath;
+    // Validar que no falte ningún campo
+    if (configName.isEmpty || host.isEmpty || port.isEmpty || keyPath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Completa todos los campos antes de agregar a favoritos.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    // Preparar el objeto de configuración
+    final newConfig = {
+      'name': configName,
+      'host': host,
+      'port': port,
+      'keyPath': keyPath,
+    };
+    // Lo guarda en el JSON que hay en la ruta base del repo, llamado 'configuraciones.json'
+    final file = File('../configuraciones.json');
+    List<dynamic> configs = [];
+    if (file.existsSync()) {
+      final content = file.readAsStringSync();
+      if (content.isNotEmpty) {
+        configs = List<dynamic>.from(jsonDecode(content));
+      }
+    }
+    configs.add(newConfig);
+    file.writeAsStringSync(jsonEncode(configs));
+    // Menaje de éxito
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Configuración agregada a favoritos exitosamente.'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        ),
+    );
+  }
 
   void _borrarCampos() {}
 
