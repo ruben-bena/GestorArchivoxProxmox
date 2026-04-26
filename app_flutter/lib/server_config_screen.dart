@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 
 // ─────────────────────────────────────────────────────────────
 // Pantalla raíz — únicamente compone los dos paneles en un Row
@@ -109,16 +111,32 @@ class ConnectionFormPanel extends StatefulWidget {
 }
 
 class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
-  final _hostController = TextEditingController(text: "ieticloudpro.ieti.cat");
-  final _userController = TextEditingController(text: "usuario");
-  final _portController = TextEditingController(text: "22");
+  final _nameController = TextEditingController();
+  final _hostController = TextEditingController();
+  final _portController = TextEditingController();
+  String? _keyFilePath;
+
+  String userHomeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
 
   @override
   void dispose() {
+    _nameController.dispose();
     _hostController.dispose();
-    _userController.dispose();
     _portController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickKeyFile() async {
+    final sshDir = '$userHomeDir/.ssh';
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Seleccionar clave SSH (id_rsa)',
+      type: FileType.any,
+      allowMultiple: false,
+      initialDirectory: sshDir,
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() => _keyFilePath = result.files.single.path);
+    }
   }
 
   @override
@@ -134,24 +152,61 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
             const Icon(Icons.dns, size: 80, color: Colors.deepPurpleAccent),
             const SizedBox(height: 32),
 
-            // Campo: Host
+            // Campo: Nombre de la configuración
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nombre de la configuración',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.label_outline),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Campo: Servidor
             TextField(
               controller: _hostController,
               decoration: const InputDecoration(
-                labelText: 'Dirección IP o Host',
+                labelText: 'Servidor (IP o URL)',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.lan),
               ),
             ),
             const SizedBox(height: 16),
 
-            // Campo: Usuario
+            // Campo: Puerto
             TextField(
-              controller: _userController,
+              controller: _portController,
+              keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Usuario SSH',
+                labelText: 'Puerto',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
+                prefixIcon: Icon(Icons.electrical_services),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Campo: Clave SSH
+            InkWell(
+              onTap: _pickKeyFile,
+              borderRadius: BorderRadius.circular(4),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Clave privada SSH',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.key),
+                  suffixIcon: Icon(Icons.folder_open),
+                ),
+                child: Text(
+                  _keyFilePath ?? 'Seleccionar archivo…',
+                  style: TextStyle(
+                    color: _keyFilePath != null
+                        ? Theme.of(context).textTheme.bodyMedium?.color
+                        : Colors.black38,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  maxLines: 1,
+                ),
               ),
             ),
             const SizedBox(height: 24),
