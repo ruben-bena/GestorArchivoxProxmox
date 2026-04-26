@@ -152,6 +152,15 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
             const Icon(Icons.dns, size: 80, color: Colors.deepPurpleAccent),
             const SizedBox(height: 32),
 
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Configuración SSH',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // Campo: Nombre de la configuración
             TextField(
               controller: _nameController,
@@ -211,22 +220,36 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
             ),
             const SizedBox(height: 24),
 
-            // Botón de Conectar
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
-                  foregroundColor: Colors.white,
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _agregarAFavoritos,
+                    icon: Icon(Icons.bookmark_outline, color: Colors.deepPurpleAccent),
+                    label: const Text('Agregar a favoritos'),
+                  ),
                 ),
-                icon: const Icon(Icons.bolt),
-                label: const Text(
-                  "CONECTAR AL SERVIDOR",
-                  style: TextStyle(fontSize: 16),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _borrarCampos,
+                    icon: Icon(Icons.delete_outline, color: Colors.deepPurpleAccent),
+                    label: const Text('Borrar'),
+                  ),
                 ),
-                onPressed: _intentarConexion,
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _conectar,
+                    icon: const Icon(Icons.bolt, color: Colors.white),
+                    label: const Text('Conectar'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -234,7 +257,9 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
     );
   }
 
-  void _intentarConexion() {
-    // TODO
-  }
+  void _agregarAFavoritos() {}
+
+  void _borrarCampos() {}
+
+  void _conectar() {}
 }
