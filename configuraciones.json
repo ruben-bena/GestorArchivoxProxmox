@@ -1,1 +1,26 @@
-[{"name":"a","host":"a","port":"a","keyPath":"/home/ruben/.ssh/id_rsa"}]
+[
+  {
+    "name": "a",
+    "host": "a",
+    "port": "a",
+    "keyPath": "/home/ruben/.ssh/id_rsa"
+  },
+  {
+    "name": "a",
+    "host": "a",
+    "port": "a",
+    "keyPath": "/home/ruben/.ssh/id_rsa"
+  },
+  {
+    "name": "a",
+    "host": "a",
+    "port": "a",
+    "keyPath": "/home/ruben/.ssh/id_rsa"
+  },
+  {
+    "name": "ruben",
+    "host": "c",
+    "port": "d",
+    "keyPath": "/home/ruben/.ssh/id_rsa"
+  }
+]

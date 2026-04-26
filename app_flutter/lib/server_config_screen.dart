@@ -6,23 +6,85 @@ import 'dart:io';
 // ─────────────────────────────────────────────────────────────
 // Pantalla raíz — únicamente compone los dos paneles en un Row
 // ─────────────────────────────────────────────────────────────
-class ServerConfigScreen extends StatelessWidget {
+File _getConfigsFile() => File('../configuraciones.json');
+
+List<Map<String, dynamic>> _readSavedConfigs() {
+  final file = _getConfigsFile();
+
+  if (!file.existsSync()) {
+    return [];
+  }
+
+  final content = file.readAsStringSync().trim();
+  if (content.isEmpty) {
+    return [];
+  }
+
+  final decoded = jsonDecode(content);
+  if (decoded is! List) {
+    return [];
+  }
+
+  return decoded
+      .whereType<Map>()
+      .map((config) => Map<String, dynamic>.from(config))
+      .toList();
+}
+
+class ServerConfigScreen extends StatefulWidget {
   const ServerConfigScreen({super.key});
+
+  @override
+  State<ServerConfigScreen> createState() => _ServerConfigScreenState();
+}
+
+class _ServerConfigScreenState extends State<ServerConfigScreen> {
+  final GlobalKey<_ConnectionFormPanelState> _formKey =
+      GlobalKey<_ConnectionFormPanelState>();
+  List<Map<String, dynamic>> _savedConfigs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadSavedConfigs();
+  }
+
+  void _reloadSavedConfigs() {
+    setState(() {
+      _savedConfigs = _readSavedConfigs();
+    });
+  }
+
+  void _selectConfig(Map<String, dynamic> config) {
+    _formKey.currentState?.loadConfig(config);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Configuración Proxmox")),
-      body: const Padding(
+      body: Padding(
         padding: EdgeInsets.all(24.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Panel izquierdo
-            Expanded(flex: 2, child: SavedConfigsPanel()),
-            SizedBox(width: 24),
+            Expanded(
+              flex: 2,
+              child: SavedConfigsPanel(
+                configs: _savedConfigs,
+                onConfigSelected: _selectConfig,
+              ),
+            ),
+            const SizedBox(width: 24),
             // Panel derecho
-            Expanded(flex: 3, child: ConnectionFormPanel()),
+            Expanded(
+              flex: 3,
+              child: ConnectionFormPanel(
+                key: _formKey,
+                onFavoriteAdded: _reloadSavedConfigs,
+              ),
+            ),
           ],
         ),
       ),
@@ -33,16 +95,15 @@ class ServerConfigScreen extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────
 // Panel izquierdo — lista de configuraciones guardadas
 // ─────────────────────────────────────────────────────────────
-class SavedConfigsPanel extends StatefulWidget {
-  const SavedConfigsPanel({super.key});
+class SavedConfigsPanel extends StatelessWidget {
+  const SavedConfigsPanel({
+    super.key,
+    required this.configs,
+    required this.onConfigSelected,
+  });
 
-  @override
-  State<SavedConfigsPanel> createState() => _SavedConfigsPanelState();
-}
-
-class _SavedConfigsPanelState extends State<SavedConfigsPanel> {
-  // Aquí irá la lista de configuraciones guardadas en el futuro
-  final List<String> _configs = [];
+  final List<Map<String, dynamic>> configs;
+  final ValueChanged<Map<String, dynamic>> onConfigSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +130,7 @@ class _SavedConfigsPanelState extends State<SavedConfigsPanel> {
 
             // Contenido
             Expanded(
-              child: _configs.isEmpty
+              child: configs.isEmpty
                   ? const Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -86,11 +147,12 @@ class _SavedConfigsPanelState extends State<SavedConfigsPanel> {
                       ),
                     )
                   : ListView.separated(
-                      itemCount: _configs.length,
+                      itemCount: configs.length,
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, index) => ListTile(
                         leading: const Icon(Icons.dns_outlined),
-                        title: Text(_configs[index]),
+                        title: Text(configs[index]['name']?.toString() ?? ''),
+                        onTap: () => onConfigSelected(configs[index]),
                       ),
                     ),
             ),
@@ -105,7 +167,12 @@ class _SavedConfigsPanelState extends State<SavedConfigsPanel> {
 // Panel derecho — formulario de conexión SSH
 // ─────────────────────────────────────────────────────────────
 class ConnectionFormPanel extends StatefulWidget {
-  const ConnectionFormPanel({super.key});
+  const ConnectionFormPanel({
+    super.key,
+    required this.onFavoriteAdded,
+  });
+
+  final VoidCallback onFavoriteAdded;
 
   @override
   State<ConnectionFormPanel> createState() => _ConnectionFormPanelState();
@@ -138,6 +205,15 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
     if (result != null && result.files.single.path != null) {
       setState(() => _keyFilePath = result.files.single.path);
     }
+  }
+
+  void loadConfig(Map<String, dynamic> config) {
+    setState(() {
+      _nameController.text = config['name']?.toString() ?? '';
+      _hostController.text = config['host']?.toString() ?? '';
+      _portController.text = config['port']?.toString() ?? '';
+      _keyFilePath = config['keyPath']?.toString();
+    });
   }
 
   @override
@@ -284,23 +360,20 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
       'keyPath': keyPath,
     };
     // Lo guarda en el JSON que hay en la ruta base del repo, llamado 'configuraciones.json'
-    final file = File('../configuraciones.json');
-    List<dynamic> configs = [];
-    if (file.existsSync()) {
-      final content = file.readAsStringSync();
-      if (content.isNotEmpty) {
-        configs = List<dynamic>.from(jsonDecode(content));
-      }
-    }
+    final file = _getConfigsFile();
+    final configs = _readSavedConfigs();
     configs.add(newConfig);
-    file.writeAsStringSync(jsonEncode(configs));
+    file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(configs));
+
+    widget.onFavoriteAdded();
+
     // Menaje de éxito
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Configuración agregada a favoritos exitosamente.'),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
-        ),
+      ),
     );
   }
 
