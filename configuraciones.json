@@ -1,26 +1,14 @@
 [
   {
-    "name": "a",
-    "host": "a",
-    "port": "a",
+    "name": "Rubén",
+    "host": "rbellidonavarro.ieti.cat",
+    "port": "20217",
     "keyPath": "/home/ruben/.ssh/id_rsa"
   },
   {
-    "name": "a",
-    "host": "a",
-    "port": "a",
-    "keyPath": "/home/ruben/.ssh/id_rsa"
-  },
-  {
-    "name": "a",
-    "host": "a",
-    "port": "a",
-    "keyPath": "/home/ruben/.ssh/id_rsa"
-  },
-  {
-    "name": "ruben",
-    "host": "c",
-    "port": "d",
+    "name": "prueba",
+    "host": "blabla.com",
+    "port": "1234",
     "keyPath": "/home/ruben/.ssh/id_rsa"
   }
 ]

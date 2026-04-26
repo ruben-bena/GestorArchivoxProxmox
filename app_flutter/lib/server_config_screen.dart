@@ -31,6 +31,11 @@ List<Map<String, dynamic>> _readSavedConfigs() {
       .toList();
 }
 
+void _writeSavedConfigs(List<Map<String, dynamic>> configs) {
+  final file = _getConfigsFile();
+  file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(configs));
+}
+
 class ServerConfigScreen extends StatefulWidget {
   const ServerConfigScreen({super.key});
 
@@ -59,6 +64,19 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     _formKey.currentState?.loadConfig(config);
   }
 
+  void _deleteConfig(Map<String, dynamic> config) {
+    final configs = _readSavedConfigs();
+    configs.removeWhere(
+      (savedConfig) =>
+          savedConfig['name'] == config['name'] &&
+          savedConfig['host'] == config['host'] &&
+          savedConfig['port'] == config['port'] &&
+          savedConfig['keyPath'] == config['keyPath'],
+    );
+    _writeSavedConfigs(configs);
+    _reloadSavedConfigs();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -74,6 +92,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
               child: SavedConfigsPanel(
                 configs: _savedConfigs,
                 onConfigSelected: _selectConfig,
+                onDeleteConfig: _deleteConfig,
               ),
             ),
             const SizedBox(width: 24),
@@ -100,10 +119,12 @@ class SavedConfigsPanel extends StatelessWidget {
     super.key,
     required this.configs,
     required this.onConfigSelected,
+    required this.onDeleteConfig,
   });
 
   final List<Map<String, dynamic>> configs;
   final ValueChanged<Map<String, dynamic>> onConfigSelected;
+  final ValueChanged<Map<String, dynamic>> onDeleteConfig;
 
   @override
   Widget build(BuildContext context) {
@@ -149,11 +170,21 @@ class SavedConfigsPanel extends StatelessWidget {
                   : ListView.separated(
                       itemCount: configs.length,
                       separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) => ListTile(
-                        leading: const Icon(Icons.dns_outlined),
-                        title: Text(configs[index]['name']?.toString() ?? ''),
-                        onTap: () => onConfigSelected(configs[index]),
-                      ),
+                      itemBuilder: (context, index) {
+                        final config = configs[index];
+
+                        return ListTile(
+                          leading: const Icon(Icons.dns_outlined),
+                          title: Text(config['name']?.toString() ?? ''),
+                          onTap: () => onConfigSelected(config),
+                          trailing: IconButton(
+                            onPressed: () => onDeleteConfig(config),
+                            icon: const Icon(Icons.delete_outline),
+                            color: Colors.redAccent,
+                            tooltip: 'Borrar configuración',
+                          ),
+                        );
+                      },
                     ),
             ),
           ],
@@ -214,6 +245,42 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
       _portController.text = config['port']?.toString() ?? '';
       _keyFilePath = config['keyPath']?.toString();
     });
+  }
+
+  void _showFeedbackMessage(
+    String message, {
+    required bool isSuccess,
+  }) {
+    final messenger = ScaffoldMessenger.of(context);
+    final theme = Theme.of(context);
+    final indicatorColor = isSuccess ? Colors.green : Colors.red;
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: indicatorColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message, style: const TextStyle(color: Colors.white))),
+            ],
+          ),
+          backgroundColor: Colors.black,
+          showCloseIcon: true,
+          closeIconColor: theme.colorScheme.onSurface,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   @override
@@ -343,12 +410,9 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
     final keyPath = _keyFilePath;
     // Validar que no falte ningún campo
     if (configName.isEmpty || host.isEmpty || port.isEmpty || keyPath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Completa todos los campos antes de agregar a favoritos.'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
+      _showFeedbackMessage(
+        'Completa todos los campos antes de agregar a favoritos.',
+        isSuccess: false,
       );
       return;
     }
@@ -360,24 +424,27 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
       'keyPath': keyPath,
     };
     // Lo guarda en el JSON que hay en la ruta base del repo, llamado 'configuraciones.json'
-    final file = _getConfigsFile();
     final configs = _readSavedConfigs();
     configs.add(newConfig);
-    file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(configs));
+    _writeSavedConfigs(configs);
 
     widget.onFavoriteAdded();
 
     // Menaje de éxito
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Configuración agregada a favoritos exitosamente.'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
+    _showFeedbackMessage(
+      'Configuración agregada a favoritos exitosamente.',
+      isSuccess: true,
     );
   }
 
-  void _borrarCampos() {}
+  void _borrarCampos() {
+    setState(() {
+      _nameController.clear();
+      _hostController.clear();
+      _portController.clear();
+      _keyFilePath = null;
+    });
+  }
 
   void _conectar() {}
 }
