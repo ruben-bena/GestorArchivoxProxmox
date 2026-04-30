@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:dartssh2/dartssh2.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -169,7 +170,7 @@ class SavedConfigsPanel extends StatelessWidget {
                     )
                   : ListView.separated(
                       itemCount: configs.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (context, index) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final config = configs[index];
 
@@ -446,5 +447,105 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
     });
   }
 
-  void _conectar() {}
+  ({String host, String username, int? port})? _parseSshTarget(String input) {
+    final rawValue = input.trim();
+    if (rawValue.isEmpty) {
+      return null;
+    }
+
+    final value = rawValue.contains('://') ? rawValue : 'ssh://$rawValue';
+    final parsedUri = Uri.tryParse(value);
+    if (parsedUri == null || parsedUri.host.isEmpty) {
+      return null;
+    }
+
+    final userFromUri = parsedUri.userInfo.isNotEmpty ? parsedUri.userInfo : null;
+    final fallbackUser = Platform.environment['USER'] ?? Platform.environment['USERNAME'] ?? 'root';
+
+    return (
+      host: parsedUri.host,
+      username: userFromUri ?? fallbackUser,
+      port: parsedUri.hasPort ? parsedUri.port : null,
+    );
+  }
+
+  Future<void> _conectar() async {
+    final hostOrUri = _hostController.text.trim();
+    final formPort = int.tryParse(_portController.text.trim());
+    final keyPath = _keyFilePath;
+
+    final target = _parseSshTarget(hostOrUri);
+
+    if (target == null) {
+      _showFeedbackMessage(
+        'URI/host inválido. Usa por ejemplo: ssh://usuario@servidor:22',
+        isSuccess: false,
+      );
+      return;
+    }
+
+    if (keyPath == null || keyPath.trim().isEmpty) {
+      _showFeedbackMessage(
+        'Selecciona una clave privada SSH antes de conectar.',
+        isSuccess: false,
+      );
+      return;
+    }
+
+    final selectedPort = target.port ?? formPort;
+    if (selectedPort == null) {
+      _showFeedbackMessage(
+        'Define el puerto en la URI o en el campo Puerto.',
+        isSuccess: false,
+      );
+      return;
+    }
+
+    if (!File(keyPath).existsSync()) {
+      _showFeedbackMessage(
+        'La clave privada seleccionada no existe.',
+        isSuccess: false,
+      );
+      return;
+    }
+
+    SSHClient? client;
+
+    try {
+      _showFeedbackMessage(
+        'Conectando a ${target.username}@${target.host}:$selectedPort...',
+        isSuccess: true,
+      );
+
+      final privateKey = await File(keyPath).readAsString();
+      final socket = await SSHSocket.connect(target.host, selectedPort, timeout: const Duration(seconds: 10));
+
+      client = SSHClient(
+        socket,
+        username: target.username,
+        identities: SSHKeyPair.fromPem(privateKey),
+      );
+
+      final result = await client.run('ls -la');
+      final output = utf8.decode(result).trim();
+
+      debugPrint('✅ SSH conectada: ${target.username}@${target.host}:$selectedPort');
+      debugPrint('📂 Directorios base del servidor:\n$output');
+
+      _showFeedbackMessage(
+        output.isEmpty
+            ? 'Conexión SSH correcta (sin salida de ls).'
+            : 'Conexión SSH correcta. Revisa consola para ver el listado.',
+        isSuccess: true,
+      );
+    } catch (error) {
+      _showFeedbackMessage(
+        'Error al conectar por SSH: $error',
+        isSuccess: false,
+      );
+      debugPrint('❌ Error SSH: $error');
+    } finally {
+      client?.close();
+    }
+  }
 }
