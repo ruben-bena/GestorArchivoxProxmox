@@ -48,6 +48,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   final GlobalKey<_ConnectionFormPanelState> _formKey =
       GlobalKey<_ConnectionFormPanelState>();
   List<Map<String, dynamic>> _savedConfigs = [];
+  bool _isConnecting = false;
 
   @override
   void initState() {
@@ -78,35 +79,72 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     _reloadSavedConfigs();
   }
 
+  void _setConnectingState(bool isConnecting) {
+    if (_isConnecting == isConnecting) {
+      return;
+    }
+
+    setState(() {
+      _isConnecting = isConnecting;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Configuración Proxmox")),
-      body: Padding(
-        padding: EdgeInsets.all(24.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Panel izquierdo
-            Expanded(
-              flex: 2,
-              child: SavedConfigsPanel(
-                configs: _savedConfigs,
-                onConfigSelected: _selectConfig,
-                onDeleteConfig: _deleteConfig,
+      body: Stack(
+        children: [
+          AbsorbPointer(
+            absorbing: _isConnecting,
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Panel izquierdo
+                  Expanded(
+                    flex: 2,
+                    child: SavedConfigsPanel(
+                      configs: _savedConfigs,
+                      onConfigSelected: _selectConfig,
+                      onDeleteConfig: _deleteConfig,
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  // Panel derecho
+                  Expanded(
+                    flex: 3,
+                    child: ConnectionFormPanel(
+                      key: _formKey,
+                      onFavoriteAdded: _reloadSavedConfigs,
+                      onConnectingStateChanged: _setConnectingState,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 24),
-            // Panel derecho
-            Expanded(
-              flex: 3,
-              child: ConnectionFormPanel(
-                key: _formKey,
-                onFavoriteAdded: _reloadSavedConfigs,
+          ),
+          if (_isConnecting)
+            Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black54,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text(
+                        'Conectando por SSH...',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -202,9 +240,11 @@ class ConnectionFormPanel extends StatefulWidget {
   const ConnectionFormPanel({
     super.key,
     required this.onFavoriteAdded,
+    required this.onConnectingStateChanged,
   });
 
   final VoidCallback onFavoriteAdded;
+  final ValueChanged<bool> onConnectingStateChanged;
 
   @override
   State<ConnectionFormPanel> createState() => _ConnectionFormPanelState();
@@ -512,6 +552,7 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
     SSHClient? client;
 
     try {
+      widget.onConnectingStateChanged(true);
       _showFeedbackMessage(
         'Conectando a ${target.username}@${target.host}:$selectedPort...',
         isSuccess: true,
@@ -546,6 +587,7 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
       debugPrint('❌ Error SSH: $error');
     } finally {
       client?.close();
+      widget.onConnectingStateChanged(false);
     }
   }
 }
