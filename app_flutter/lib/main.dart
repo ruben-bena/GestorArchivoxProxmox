@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'server_config_screen.dart';
+import 'ui/views/server_config_view.dart';
 
 void main() {
   runApp(const ProxmoxManagerApp());
