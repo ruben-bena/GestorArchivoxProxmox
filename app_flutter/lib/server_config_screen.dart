@@ -4,6 +4,8 @@ import 'package:dartssh2/dartssh2.dart';
 import 'dart:convert';
 import 'dart:io';
 
+import 'server_manager_screen.dart';
+
 // ─────────────────────────────────────────────────────────────
 // Pantalla raíz — únicamente compone los dos paneles en un Row
 // ─────────────────────────────────────────────────────────────
@@ -195,8 +197,11 @@ class SavedConfigsPanel extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.inbox_outlined,
-                              size: 48, color: Colors.black26),
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 48,
+                            color: Colors.black26,
+                          ),
                           SizedBox(height: 12),
                           Text(
                             "Aún no hay configuraciones guardadas",
@@ -208,7 +213,8 @@ class SavedConfigsPanel extends StatelessWidget {
                     )
                   : ListView.separated(
                       itemCount: configs.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final config = configs[index];
 
@@ -256,7 +262,8 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
   final _portController = TextEditingController();
   String? _keyFilePath;
 
-  String userHomeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
+  String userHomeDir =
+      Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
 
   @override
   void dispose() {
@@ -288,10 +295,7 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
     });
   }
 
-  void _showFeedbackMessage(
-    String message, {
-    required bool isSuccess,
-  }) {
+  void _showFeedbackMessage(String message, {required bool isSuccess}) {
     final messenger = ScaffoldMessenger.of(context);
     final theme = Theme.of(context);
     final indicatorColor = isSuccess ? Colors.green : Colors.red;
@@ -312,7 +316,12 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Text(message, style: const TextStyle(color: Colors.white))),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
             ],
           ),
           backgroundColor: Colors.black,
@@ -410,7 +419,10 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _agregarAFavoritos,
-                    icon: Icon(Icons.bookmark_outline, color: Colors.deepPurpleAccent),
+                    icon: Icon(
+                      Icons.bookmark_outline,
+                      color: Colors.deepPurpleAccent,
+                    ),
                     label: const Text('Agregar a favoritos'),
                   ),
                 ),
@@ -418,7 +430,10 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _borrarCampos,
-                    icon: Icon(Icons.delete_outline, color: Colors.deepPurpleAccent),
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: Colors.deepPurpleAccent,
+                    ),
                     label: const Text('Borrar'),
                   ),
                 ),
@@ -499,8 +514,13 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
       return null;
     }
 
-    final userFromUri = parsedUri.userInfo.isNotEmpty ? parsedUri.userInfo : null;
-    final fallbackUser = Platform.environment['USER'] ?? Platform.environment['USERNAME'] ?? 'root';
+    final userFromUri = parsedUri.userInfo.isNotEmpty
+        ? parsedUri.userInfo
+        : null;
+    final fallbackUser =
+        Platform.environment['USER'] ??
+        Platform.environment['USERNAME'] ??
+        'root';
 
     return (
       host: parsedUri.host,
@@ -513,6 +533,7 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
     final hostOrUri = _hostController.text.trim();
     final formPort = int.tryParse(_portController.text.trim());
     final keyPath = _keyFilePath;
+    var connectionSucceeded = false;
 
     final target = _parseSshTarget(hostOrUri);
 
@@ -559,7 +580,11 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
       );
 
       final privateKey = await File(keyPath).readAsString();
-      final socket = await SSHSocket.connect(target.host, selectedPort, timeout: const Duration(seconds: 10));
+      final socket = await SSHSocket.connect(
+        target.host,
+        selectedPort,
+        timeout: const Duration(seconds: 10),
+      );
 
       client = SSHClient(
         socket,
@@ -570,7 +595,9 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
       final result = await client.run('ls -la');
       final output = utf8.decode(result).trim();
 
-      debugPrint('✅ SSH conectada: ${target.username}@${target.host}:$selectedPort');
+      debugPrint(
+        '✅ SSH conectada: ${target.username}@${target.host}:$selectedPort',
+      );
       debugPrint('📂 Directorios base del servidor:\n$output');
 
       _showFeedbackMessage(
@@ -579,6 +606,7 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
             : 'Conexión SSH correcta. Revisa consola para ver el listado.',
         isSuccess: true,
       );
+      connectionSucceeded = true;
     } catch (error) {
       _showFeedbackMessage(
         'Error al conectar por SSH: $error',
@@ -588,6 +616,19 @@ class _ConnectionFormPanelState extends State<ConnectionFormPanel> {
     } finally {
       client?.close();
       widget.onConnectingStateChanged(false);
+    }
+
+    if (connectionSucceeded && mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ServerManagerScreen(
+            host: target.host,
+            username: target.username,
+            port: selectedPort,
+            keyPath: keyPath,
+          ),
+        ),
+      );
     }
   }
 }
