@@ -32,10 +32,9 @@ class ServerManagerScreen extends StatefulWidget {
 
 class _ServerManagerScreenState extends State<ServerManagerScreen> {
   static const List<({String label, IconData icon})> _sections = [
-    (label: 'Recientes', icon: Icons.history),
     (label: 'Carpetas', icon: Icons.folder_outlined),
-    (label: 'Compartidos', icon: Icons.group_outlined),
-    (label: 'Eliminados', icon: Icons.delete_outline),
+    (label: 'Servidores Java/NodeJS', icon: Icons.storage_outlined),
+    (label: 'Visualizador', icon: Icons.remove_red_eye_outlined),
   ];
 
   late final SftpFileService _sftpService;
