@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/remote_entry.dart';
 
-enum EntryAction { rename, download, delete, info }
+enum EntryAction { rename, download, extractZip, delete, info }
 
 class RemoteEntriesContent extends StatelessWidget {
   const RemoteEntriesContent({
@@ -85,6 +85,8 @@ class RemoteEntriesContent extends StatelessWidget {
       separatorBuilder: (context, index) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final entry = entries[index];
+        final isZipFile =
+            !entry.isDirectory && entry.name.toLowerCase().endsWith('.zip');
 
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -113,8 +115,8 @@ class RemoteEntriesContent extends StatelessWidget {
               PopupMenuButton<EntryAction>(
                 tooltip: 'Acciones',
                 onSelected: (action) => onActionSelected(action, entry),
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
                     value: EntryAction.rename,
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -122,7 +124,7 @@ class RemoteEntriesContent extends StatelessWidget {
                       title: Text('Cambiar nombre'),
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: EntryAction.download,
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -130,7 +132,16 @@ class RemoteEntriesContent extends StatelessWidget {
                       title: Text('Descargar en local'),
                     ),
                   ),
-                  PopupMenuItem(
+                  if (isZipFile)
+                    const PopupMenuItem(
+                      value: EntryAction.extractZip,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.folder_zip_outlined),
+                        title: Text('Descomprimir'),
+                      ),
+                    ),
+                  const PopupMenuItem(
                     value: EntryAction.delete,
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -138,7 +149,7 @@ class RemoteEntriesContent extends StatelessWidget {
                       title: Text('Borrar'),
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: EntryAction.info,
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,

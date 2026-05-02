@@ -115,6 +115,29 @@ class SftpFileService {
     });
   }
 
+  Future<void> extractZipEntry(RemoteEntry entry) async {
+    if (entry.isDirectory || !entry.name.toLowerCase().endsWith('.zip')) {
+      throw Exception('Solo se pueden descomprimir archivos .zip.');
+    }
+
+    await _withSftp((sftp, client) async {
+      final parentDirectory = _remoteDirname(entry.fullPath);
+      final escapedDirectory = _escapeForSingleQuotes(parentDirectory);
+      final escapedFilename = _escapeForSingleQuotes(entry.name);
+      final script = '''
+if ! command -v unzip >/dev/null 2>&1; then
+  echo 'El comando unzip no está disponible en el servidor remoto.' >&2
+  exit 1
+fi
+cd '$escapedDirectory' || exit 1
+unzip -o '$escapedFilename'
+''';
+
+      final escapedScript = _escapeForSingleQuotes(script);
+      await client.run("sh -lc '$escapedScript'");
+    });
+  }
+
   Future<SSHClient> _createSshClient() async {
     final privateKey = await File(keyPath).readAsString();
     final socket = await SSHSocket.connect(
@@ -187,6 +210,26 @@ class SftpFileService {
     final normalized = path.replaceAll('\\', '/');
     final parts = normalized.split('/');
     return parts.isEmpty ? path : parts.last;
+  }
+
+  String _remoteDirname(String path) {
+    if (path == '/') {
+      return '/';
+    }
+
+    final trimmed = path.endsWith('/') && path.length > 1
+        ? path.substring(0, path.length - 1)
+        : path;
+    final slashIndex = trimmed.lastIndexOf('/');
+    if (slashIndex <= 0) {
+      return '/';
+    }
+
+    return trimmed.substring(0, slashIndex);
+  }
+
+  String _escapeForSingleQuotes(String value) {
+    return value.replaceAll("'", "'\"'\"'");
   }
 
   Future<void> _deleteRemoteEntryRecursive(

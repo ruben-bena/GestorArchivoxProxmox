@@ -318,6 +318,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
       case EntryAction.download:
         await _downloadEntry(entry);
         break;
+      case EntryAction.extractZip:
+        await _extractZipEntry(entry);
+        break;
       case EntryAction.delete:
         await _deleteEntry(entry);
         break;
@@ -443,6 +446,34 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
         showFeedbackSnackbar(
           context,
           'No se pudo descargar el elemento: $error',
+          isSuccess: false,
+          durationSeconds: 3,
+        );
+      }
+    });
+  }
+
+  Future<void> _extractZipEntry(RemoteEntry entry) async {
+    await _runProcessingAction('Descomprimiendo archivo ZIP...', () async {
+      try {
+        await _sftpService.extractZipEntry(entry);
+        await _loadDirectory(_currentDirectory);
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'Archivo ZIP descomprimido correctamente.',
+          isSuccess: true,
+          durationSeconds: 3,
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'No se pudo descomprimir el ZIP: $error',
           isSuccess: false,
           durationSeconds: 3,
         );
