@@ -289,6 +289,10 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
       );
       debugPrint('📂 Directorios base del servidor:\n$output');
 
+      if (!mounted) {
+        return;
+      }
+
       showFeedbackSnackbar(
         context,
         output.isEmpty
@@ -298,6 +302,10 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
       );
       connectionSucceeded = true;
     } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
       showFeedbackSnackbar(
         context,
         'Error al conectar por SSH: $error',

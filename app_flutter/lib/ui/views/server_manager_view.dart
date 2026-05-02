@@ -1,14 +1,17 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../domain/managed_remote_server.dart';
 import '../../domain/remote_entry.dart';
+import '../../services/port_forwarding_service.dart';
 import '../../services/remote_entry_format_service.dart';
+import '../../services/remote_server_control_service.dart';
 import '../../services/sftp_file_service.dart';
 import '../widgets/server_manager/explorer_sidebar.dart';
 import '../widgets/server_manager/folders_section_panel.dart';
 import '../widgets/server_manager/info_row.dart';
+import '../widgets/server_manager/managed_servers_section_panel.dart';
 import '../widgets/server_manager/remote_entries_content.dart';
-import '../widgets/server_manager/section_placeholder_panel.dart';
 import '../widgets/server_manager/visualizer_section_panel.dart';
 import '../widgets/shared/feedback_snackbar.dart';
 import '../widgets/shared/processing_overlay.dart';
@@ -34,23 +37,31 @@ class ServerManagerScreen extends StatefulWidget {
 }
 
 class _ServerManagerScreenState extends State<ServerManagerScreen> {
+  static const String _serversSectionLabel = 'Servidores';
+
   static const List<({String label, IconData icon})> _sections = [
     (label: 'Carpetas', icon: Icons.folder_outlined),
-    (label: 'Servidores Java/NodeJS', icon: Icons.storage_outlined),
+    (label: _serversSectionLabel, icon: Icons.storage_outlined),
     (label: 'Visualizador', icon: Icons.remove_red_eye_outlined),
   ];
 
   late final SftpFileService _sftpService;
+  late final RemoteServerControlService _serverControlService;
+  late final PortForwardingService _portForwardingService;
   final RemoteEntryFormatService _formatService =
       const RemoteEntryFormatService();
 
   List<RemoteEntry> _entries = const [];
+  List<ManagedRemoteServer> _managedServers = const [];
   String _selectedSection = 'Carpetas';
   String _currentDirectory = '.';
   bool _isLoading = true;
+  bool _isLoadingManagedServers = true;
   bool _isProcessing = false;
   String _processingLabel = 'Procesando...';
   String? _errorMessage;
+  String? _managedServersErrorMessage;
+  int _managedServersRequestId = 0;
 
   @override
   void initState() {
@@ -61,7 +72,20 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
       port: widget.port,
       keyPath: widget.keyPath,
     );
+    _serverControlService = RemoteServerControlService(
+      host: widget.host,
+      username: widget.username,
+      port: widget.port,
+      keyPath: widget.keyPath,
+    );
+    _portForwardingService = PortForwardingService();
     _loadDirectory(widget.initialDirectory);
+  }
+
+  @override
+  void dispose() {
+    _portForwardingService.dispose();
+    super.dispose();
   }
 
   bool get _isRootDirectory => _currentDirectory == '/';
@@ -69,7 +93,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
   Future<void> _loadDirectory(String directory) async {
     setState(() {
       _isLoading = true;
+      _isLoadingManagedServers = true;
       _errorMessage = null;
+      _managedServersErrorMessage = null;
     });
 
     try {
@@ -84,6 +110,11 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
         _entries = snapshot.entries;
         _isLoading = false;
       });
+
+      await _refreshManagedServers(
+        directory: snapshot.directory,
+        entries: snapshot.entries,
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -93,8 +124,76 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
         _errorMessage = 'No se pudo cargar el contenido remoto: $error';
         _entries = const [];
         _isLoading = false;
+        _managedServers = const [];
+        _isLoadingManagedServers = false;
+        _managedServersErrorMessage =
+            'No se pudo detectar la lista de servidores.';
       });
     }
+  }
+
+  Future<void> _refreshManagedServers({
+    String? directory,
+    List<RemoteEntry>? entries,
+  }) async {
+    final requestId = ++_managedServersRequestId;
+    final targetDirectory = directory ?? _currentDirectory;
+    final targetEntries = entries ?? _entries;
+
+    setState(() {
+      _isLoadingManagedServers = true;
+      _managedServersErrorMessage = null;
+    });
+
+    try {
+      final servers = await _serverControlService.discoverServers(
+        currentDirectory: targetDirectory,
+        entries: targetEntries,
+      );
+
+      if (!mounted || requestId != _managedServersRequestId) {
+        return;
+      }
+
+      setState(() {
+        _managedServers = _mergePortForwardSessions(servers);
+        _isLoadingManagedServers = false;
+      });
+    } catch (error) {
+      if (!mounted || requestId != _managedServersRequestId) {
+        return;
+      }
+
+      setState(() {
+        _managedServers = const [];
+        _isLoadingManagedServers = false;
+        _managedServersErrorMessage =
+            'No se pudieron detectar los servidores remotos: $error';
+      });
+    }
+  }
+
+  List<ManagedRemoteServer> _mergePortForwardSessions(
+    List<ManagedRemoteServer> servers,
+  ) {
+    final sessions = _portForwardingService.sessionsByServerPath;
+
+    return servers
+        .map((server) {
+          final session = sessions[server.fullPath];
+          if (session == null) {
+            return server.copyWith(
+              clearForwardedLocalPort: true,
+              clearForwardedRemotePort: true,
+            );
+          }
+
+          return server.copyWith(
+            forwardedLocalPort: session.localPort,
+            forwardedRemotePort: session.remotePort,
+          );
+        })
+        .toList(growable: false);
   }
 
   Future<void> _runProcessingAction(
@@ -234,6 +333,10 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
+
     if (newName.contains('/')) {
       showFeedbackSnackbar(
         context,
@@ -252,6 +355,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           newName: newName,
         );
         await _loadDirectory(_currentDirectory);
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'Nombre actualizado correctamente.',
@@ -259,6 +365,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           durationSeconds: 3,
         );
       } catch (error) {
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'No se pudo cambiar el nombre: $error',
@@ -279,6 +388,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
       try {
         await _sftpService.deleteEntry(entry);
         await _loadDirectory(_currentDirectory);
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'Elemento borrado correctamente.',
@@ -286,6 +398,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           durationSeconds: 3,
         );
       } catch (error) {
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'No se pudo borrar el elemento: $error',
@@ -312,6 +427,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           entry: entry,
           localDirectory: localDirectory,
         );
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'Descarga completada en local.',
@@ -319,6 +437,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           durationSeconds: 3,
         );
       } catch (error) {
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'No se pudo descargar el elemento: $error',
@@ -403,6 +524,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           },
         );
       } catch (error) {
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'No se pudo obtener la información del elemento: $error',
@@ -411,6 +535,258 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
         );
       }
     });
+  }
+
+  Future<void> _startManagedServer(ManagedRemoteServer server) async {
+    await _runProcessingAction('Arrancando servidor...', () async {
+      try {
+        await _serverControlService.startServer(server);
+        await Future<void>.delayed(const Duration(seconds: 2));
+        await _refreshManagedServers();
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'Servidor ${server.name} arrancado correctamente.',
+          isSuccess: true,
+          durationSeconds: 3,
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'No se pudo arrancar ${server.name}: $error',
+          isSuccess: false,
+          durationSeconds: 4,
+        );
+      }
+    });
+  }
+
+  Future<void> _stopManagedServer(ManagedRemoteServer server) async {
+    await _runProcessingAction('Parando servidor...', () async {
+      try {
+        await _serverControlService.stopServer(server);
+        await _refreshManagedServers();
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'Servidor ${server.name} detenido correctamente.',
+          isSuccess: true,
+          durationSeconds: 3,
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'No se pudo detener ${server.name}: $error',
+          isSuccess: false,
+          durationSeconds: 4,
+        );
+      }
+    });
+  }
+
+  Future<void> _restartManagedServer(ManagedRemoteServer server) async {
+    await _runProcessingAction('Reiniciando servidor...', () async {
+      try {
+        await _serverControlService.restartServer(server);
+        await Future<void>.delayed(const Duration(seconds: 2));
+        await _refreshManagedServers();
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'Servidor ${server.name} reiniciado correctamente.',
+          isSuccess: true,
+          durationSeconds: 3,
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'No se pudo reiniciar ${server.name}: $error',
+          isSuccess: false,
+          durationSeconds: 4,
+        );
+      }
+    });
+  }
+
+  Future<void> _redirectServerPort(ManagedRemoteServer server) async {
+    final selectedPorts = await _showPortRedirectDialog(server);
+    if (selectedPorts == null) {
+      return;
+    }
+
+    await _runProcessingAction('Abriendo túnel SSH...', () async {
+      try {
+        final session = await _portForwardingService.startPortForward(
+          serverPath: server.fullPath,
+          host: widget.host,
+          username: widget.username,
+          sshPort: widget.port,
+          keyPath: widget.keyPath,
+          remotePort: selectedPorts.remotePort,
+          localPort: selectedPorts.localPort,
+        );
+        await _refreshManagedServers();
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'Puerto remoto ${session.remotePort} disponible en localhost:${session.localPort}.',
+          isSuccess: true,
+          durationSeconds: 4,
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'No se pudo redirigir el puerto de ${server.name}: $error',
+          isSuccess: false,
+          durationSeconds: 4,
+        );
+      }
+    });
+  }
+
+  Future<void> _closePortRedirect(ManagedRemoteServer server) async {
+    await _runProcessingAction('Cerrando túnel SSH...', () async {
+      try {
+        await _portForwardingService.stopPortForward(server.fullPath);
+        await _refreshManagedServers();
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'Redirección cerrada para ${server.name}.',
+          isSuccess: true,
+          durationSeconds: 3,
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        showFeedbackSnackbar(
+          context,
+          'No se pudo cerrar la redirección: $error',
+          isSuccess: false,
+          durationSeconds: 4,
+        );
+      }
+    });
+  }
+
+  Future<({int localPort, int remotePort})?> _showPortRedirectDialog(
+    ManagedRemoteServer server,
+  ) async {
+    final currentSession =
+        _portForwardingService.sessionsByServerPath[server.fullPath];
+    final localPortController = TextEditingController(
+      text: (currentSession?.localPort ?? server.detectedPort).toString(),
+    );
+    final remotePortController = TextEditingController(
+      text: (currentSession?.remotePort ?? server.detectedPort).toString(),
+    );
+
+    final result = await showDialog<({int localPort, int remotePort})>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1F1F1F),
+          title: Text('Redirigir puerto de ${server.name}'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: remotePortController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Puerto remoto',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: localPortController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Puerto local',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'El túnel expondrá el servicio remoto en localhost usando SSH.',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                final localPort = int.tryParse(localPortController.text.trim());
+                final remotePort = int.tryParse(
+                  remotePortController.text.trim(),
+                );
+
+                if (!_isValidPort(localPort) || !_isValidPort(remotePort)) {
+                  showFeedbackSnackbar(
+                    context,
+                    'Introduce puertos válidos entre 1 y 65535.',
+                    isSuccess: false,
+                    durationSeconds: 3,
+                  );
+                  return;
+                }
+
+                Navigator.of(
+                  context,
+                ).pop((localPort: localPort!, remotePort: remotePort!));
+              },
+              child: const Text('Redirigir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    localPortController.dispose();
+    remotePortController.dispose();
+    return result;
+  }
+
+  bool _isValidPort(int? value) {
+    return value != null && value >= 1 && value <= 65535;
   }
 
   Future<void> _showUploadOptions() async {
@@ -478,6 +854,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           localPaths: paths,
         );
         await _loadDirectory(_currentDirectory);
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'Archivos subidos correctamente.',
@@ -485,6 +864,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           durationSeconds: 3,
         );
       } catch (error) {
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'No se pudieron subir los archivos: $error',
@@ -512,6 +894,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           localDirectory: localDirectory,
         );
         await _loadDirectory(_currentDirectory);
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'Carpeta subida correctamente.',
@@ -519,6 +904,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           durationSeconds: 3,
         );
       } catch (error) {
+        if (!mounted) {
+          return;
+        }
         showFeedbackSnackbar(
           context,
           'No se pudo subir la carpeta: $error',
@@ -545,6 +933,20 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           onOpenDirectory: _openChildDirectory,
           onActionSelected: _handleEntryAction,
         );
+      case _serversSectionLabel:
+        return ManagedServersSectionPanel(
+          currentDirectory: _currentDirectory,
+          isLoading: _isLoadingManagedServers,
+          errorMessage: _managedServersErrorMessage,
+          servers: _managedServers,
+          onRefresh: _refreshManagedServers,
+          onRetry: _refreshManagedServers,
+          onStartServer: _startManagedServer,
+          onStopServer: _stopManagedServer,
+          onRestartServer: _restartManagedServer,
+          onRedirectPort: _redirectServerPort,
+          onStopRedirect: _closePortRedirect,
+        );
       case 'Visualizador':
         return VisualizerSectionPanel(
           currentDirectory: _currentDirectory,
@@ -560,11 +962,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           onActionSelected: _handleEntryAction,
         );
       default:
-        return const SectionPlaceholderPanel(
-          title: 'Servidores Java/NodeJS',
-          icon: Icons.storage_outlined,
-          message: 'Panel reservado para próximos módulos.',
-        );
+        return const SizedBox.shrink();
     }
   }
 
