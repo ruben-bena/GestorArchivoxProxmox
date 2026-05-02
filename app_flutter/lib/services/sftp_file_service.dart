@@ -6,6 +6,7 @@ import 'package:dartssh2/dartssh2.dart';
 import '../domain/remote_directory_snapshot.dart';
 import '../domain/remote_entry.dart';
 
+/// Servicio SFTP para navegación, transferencia y operaciones de archivos remotos.
 class SftpFileService {
   const SftpFileService({
     required this.host,
@@ -19,6 +20,7 @@ class SftpFileService {
   final int port;
   final String keyPath;
 
+  /// Carga un directorio remoto y devuelve sus entradas ordenadas para UI.
   Future<RemoteDirectorySnapshot> loadDirectory(String directory) async {
     return _withSftp((sftp, client) async {
       final resolvedDirectory = await sftp.absolute(directory);
@@ -49,6 +51,7 @@ class SftpFileService {
     });
   }
 
+  /// Renombra un archivo/carpeta dentro del directorio actual.
   Future<void> rename({
     required String currentDirectory,
     required RemoteEntry entry,
@@ -58,12 +61,14 @@ class SftpFileService {
     await _withSftp((sftp, client) => sftp.rename(entry.fullPath, newPath));
   }
 
+  /// Borra una entrada remota (recursivo si es carpeta).
   Future<void> deleteEntry(RemoteEntry entry) async {
     await _withSftp((sftp, client) async {
       await _deleteRemoteEntryRecursive(sftp, entry.fullPath);
     });
   }
 
+  /// Descarga una entrada remota a un directorio local.
   Future<void> downloadEntry({
     required RemoteEntry entry,
     required String localDirectory,
@@ -74,6 +79,7 @@ class SftpFileService {
     });
   }
 
+  /// Sube múltiples archivos locales al directorio remoto actual.
   Future<void> uploadFiles({
     required String currentDirectory,
     required List<String> localPaths,
@@ -89,6 +95,7 @@ class SftpFileService {
     });
   }
 
+  /// Sube una carpeta local completa preservando su estructura.
   Future<void> uploadDirectory({
     required String currentDirectory,
     required String localDirectory,
@@ -102,6 +109,7 @@ class SftpFileService {
     });
   }
 
+  /// Reconsulta metadatos de una entrada remota para mostrar detalles actualizados.
   Future<RemoteEntry> getEntryInfo(RemoteEntry entry) async {
     return _withSftp((sftp, client) async {
       final attrs = await sftp.stat(entry.fullPath, followLink: false);
@@ -115,6 +123,7 @@ class SftpFileService {
     });
   }
 
+  /// Descomprime un archivo `.zip` en el servidor remoto.
   Future<void> extractZipEntry(RemoteEntry entry) async {
     if (entry.isDirectory || !entry.name.toLowerCase().endsWith('.zip')) {
       throw Exception('Solo se pueden descomprimir archivos .zip.');
@@ -138,6 +147,7 @@ unzip -o '$escapedFilename'
     });
   }
 
+  /// Crea un cliente SSH autenticado con clave privada.
   Future<SSHClient> _createSshClient() async {
     final privateKey = await File(keyPath).readAsString();
     final socket = await SSHSocket.connect(
@@ -153,6 +163,7 @@ unzip -o '$escapedFilename'
     );
   }
 
+  /// Ejecuta una acción con cliente SFTP garantizando cierre de recursos.
   Future<T> _withSftp<T>(
     Future<T> Function(SftpClient sftp, SSHClient client) action,
   ) async {
@@ -170,6 +181,7 @@ unzip -o '$escapedFilename'
     }
   }
 
+  /// Convierte un `SftpName` al modelo de dominio usado por la UI.
   RemoteEntry _toRemoteEntry({
     required String parentDirectory,
     required SftpName name,
@@ -190,6 +202,7 @@ unzip -o '$escapedFilename'
     );
   }
 
+  /// Une segmentos de ruta remota con semántica POSIX.
   String _joinRemotePath(String parent, String child) {
     if (parent == '/') {
       return '/$child';
@@ -198,6 +211,7 @@ unzip -o '$escapedFilename'
     return '$parent/$child';
   }
 
+  /// Une segmentos de ruta local respetando el separador de la plataforma.
   String _joinLocalPath(String parent, String child) {
     if (parent.endsWith(Platform.pathSeparator)) {
       return '$parent$child';
@@ -206,12 +220,14 @@ unzip -o '$escapedFilename'
     return '$parent${Platform.pathSeparator}$child';
   }
 
+  /// Obtiene el nombre base de una ruta local.
   String _localBasename(String path) {
     final normalized = path.replaceAll('\\', '/');
     final parts = normalized.split('/');
     return parts.isEmpty ? path : parts.last;
   }
 
+  /// Obtiene el directorio padre remoto de una ruta.
   String _remoteDirname(String path) {
     if (path == '/') {
       return '/';
@@ -228,10 +244,12 @@ unzip -o '$escapedFilename'
     return trimmed.substring(0, slashIndex);
   }
 
+  /// Escapa comillas simples para interpolar texto en scripts shell de una línea.
   String _escapeForSingleQuotes(String value) {
     return value.replaceAll("'", "'\"'\"'");
   }
 
+  /// Borra recursivamente archivos/carpetas remotas evitando seguir enlaces simbólicos.
   Future<void> _deleteRemoteEntryRecursive(
     SftpClient sftp,
     String remotePath,
@@ -257,6 +275,7 @@ unzip -o '$escapedFilename'
     await sftp.remove(remotePath);
   }
 
+  /// Descarga una entrada remota; delega en recursión si se trata de carpeta.
   Future<void> _downloadRemoteEntry(
     SftpClient sftp,
     String remotePath,
@@ -274,6 +293,7 @@ unzip -o '$escapedFilename'
     await sftp.download(remotePath, output, closeDestination: true);
   }
 
+  /// Descarga el contenido completo de un directorio remoto.
   Future<void> _downloadRemoteDirectory(
     SftpClient sftp,
     String remoteDirectory,
@@ -301,6 +321,7 @@ unzip -o '$escapedFilename'
     }
   }
 
+  /// Sube un archivo local a una ruta remota concreta.
   Future<void> _uploadLocalFile(
     SftpClient sftp,
     String localPath,
@@ -324,6 +345,7 @@ unzip -o '$escapedFilename'
     }
   }
 
+  /// Recorre y sube una carpeta local completa de forma recursiva.
   Future<void> _uploadLocalDirectory(
     SftpClient sftp,
     String localDirectory,
@@ -344,6 +366,7 @@ unzip -o '$escapedFilename'
     }
   }
 
+  /// Crea un directorio remoto si no existe y valida colisiones de nombre.
   Future<void> _ensureRemoteDirectory(
     SftpClient sftp,
     String remoteDirectory,

@@ -5,9 +5,11 @@ import 'package:dartssh2/dartssh2.dart';
 
 import '../domain/ssh_target.dart';
 
+/// Encapsula la normalización de destinos SSH y una prueba básica de conexión.
 class SshConnectionService {
   const SshConnectionService();
 
+  /// Interpreta host/URI y devuelve un [SshTarget] válido o `null` si es inválido.
   SshTarget? parseTarget(String input) {
     final rawValue = input.trim();
     if (rawValue.isEmpty) {
@@ -35,6 +37,7 @@ class SshConnectionService {
     );
   }
 
+  /// Ejecuta un comando de salud remoto para validar credenciales y conectividad.
   Future<String> runHealthcheck({
     required SshTarget target,
     required String keyPath,

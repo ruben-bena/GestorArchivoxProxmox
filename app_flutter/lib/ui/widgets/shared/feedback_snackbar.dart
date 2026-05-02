@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Muestra un `SnackBar` unificado con indicador visual de éxito/error.
 void showFeedbackSnackbar(
   BuildContext context,
   String message, {

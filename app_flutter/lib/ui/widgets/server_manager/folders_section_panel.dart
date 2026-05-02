@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../domain/remote_entry.dart';
 import 'remote_entries_content.dart';
 
+/// Panel principal para navegación y acciones sobre el directorio remoto actual.
 class FoldersSectionPanel extends StatelessWidget {
   const FoldersSectionPanel({
     super.key,

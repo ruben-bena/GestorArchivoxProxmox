@@ -6,6 +6,7 @@ import 'package:dartssh2/dartssh2.dart';
 import '../domain/managed_remote_server.dart';
 import '../domain/remote_entry.dart';
 
+/// Descubre y controla proyectos Java/NodeJS en el servidor remoto vía SSH.
 class RemoteServerControlService {
   const RemoteServerControlService({
     required this.host,
@@ -19,6 +20,7 @@ class RemoteServerControlService {
   final int port;
   final String keyPath;
 
+  /// Inspecciona directorio actual y subdirectorios inmediatos para detectar servidores.
   Future<List<ManagedRemoteServer>> discoverServers({
     required String currentDirectory,
     required List<RemoteEntry> entries,
@@ -86,12 +88,14 @@ class RemoteServerControlService {
     });
   }
 
+  /// Arranca un servidor remoto según su tipo y estructura detectada.
   Future<void> startServer(ManagedRemoteServer server) async {
     await _withClient((client, sftp) async {
       await _runCommand(client, _buildStartCommand(server));
     });
   }
 
+  /// Detiene el proceso que escucha en el puerto detectado del servidor.
   Future<void> stopServer(ManagedRemoteServer server) async {
     await _withClient((client, sftp) async {
       final targetPort = server.detectedPort;
@@ -114,12 +118,14 @@ fi
     });
   }
 
+  /// Reinicia el servidor remoto aplicando parada y arranque secuencial.
   Future<void> restartServer(ManagedRemoteServer server) async {
     await stopServer(server);
     await Future<void>.delayed(const Duration(seconds: 1));
     await startServer(server);
   }
 
+  /// Ejecuta una acción con cliente SSH+SFTP garantizando liberación de recursos.
   Future<T> _withClient<T>(
     Future<T> Function(SSHClient client, SftpClient sftp) action,
   ) async {
@@ -148,6 +154,7 @@ fi
     }
   }
 
+  /// Lista nombres de entradas de un directorio remoto.
   Future<Set<String>> _listDirectoryNames(
     SftpClient sftp,
     String directory,
@@ -156,6 +163,7 @@ fi
     return names.map((item) => item.filename).toSet();
   }
 
+  /// Resuelve tipo de servidor a partir de archivos marcadores.
   ManagedServerType? _resolveServerType(Set<String> markerFiles) {
     if (markerFiles.contains('package.json')) {
       return ManagedServerType.nodeJs;
@@ -170,6 +178,7 @@ fi
     return null;
   }
 
+  /// Define el comando de arranque sugerido para mostrar en UI.
   String _resolveStartCommandLabel({
     required ManagedServerType serverType,
     required Set<String> markerFiles,
@@ -189,6 +198,7 @@ fi
     }
   }
 
+  /// Detecta el puerto preferido leyendo configuración típica por stack.
   Future<int> _detectPreferredPort({
     required SSHClient client,
     required String directory,
@@ -232,6 +242,7 @@ printf '%s' "\$port"
     return int.tryParse(output.trim()) ?? serverType.defaultPort;
   }
 
+  /// Comprueba si el puerto remoto está escuchando actualmente.
   Future<bool> _isPortListening({
     required SSHClient client,
     required int port,
@@ -249,6 +260,7 @@ fi
     return output.trim() == 'running';
   }
 
+  /// Construye el script de arranque remoto según tipo de servidor.
   String _buildStartCommand(ManagedRemoteServer server) {
     final escapedDirectory = _escapeForSingleQuotes(server.fullPath);
     final escapedLogName = _escapeForSingleQuotes(
@@ -289,12 +301,14 @@ fi
     };
   }
 
+  /// Ejecuta script remoto mediante `sh -lc` y devuelve salida estándar.
   Future<String> _runCommand(SSHClient client, String script) async {
     final escapedScript = _escapeForSingleQuotes(script);
     final output = await client.run("sh -lc '$escapedScript'");
     return utf8.decode(output).trim();
   }
 
+  /// Obtiene nombre base de una ruta remota.
   String _basename(String path) {
     if (path == '/') {
       return '/';
@@ -311,6 +325,7 @@ fi
     return trimmed.substring(slashIndex + 1);
   }
 
+  /// Escapa comillas simples para scripts shell embebidos.
   String _escapeForSingleQuotes(String value) {
     return value.replaceAll("'", "'\"'\"'");
   }

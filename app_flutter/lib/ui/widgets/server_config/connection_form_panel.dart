@@ -9,6 +9,7 @@ import '../../../services/ssh_connection_service.dart';
 import '../../views/server_manager_view.dart';
 import '../shared/feedback_snackbar.dart';
 
+/// Formulario de conexión SSH con soporte de favoritos y validaciones básicas.
 class ConnectionFormPanel extends StatefulWidget {
   const ConnectionFormPanel({
     super.key,
@@ -44,6 +45,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
     super.dispose();
   }
 
+  /// Abre selector de archivos para elegir la clave privada SSH.
   Future<void> _pickKeyFile() async {
     final sshDir = '$_userHomeDir/.ssh';
     final result = await FilePicker.platform.pickFiles(
@@ -57,6 +59,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
     }
   }
 
+  /// Carga en los campos la configuración seleccionada por el usuario.
   void loadConfig(ServerConnectionConfig config) {
     setState(() {
       _nameController.text = config.name;
@@ -183,6 +186,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
     );
   }
 
+  /// Persiste la configuración actual como favorita.
   void _agregarAFavoritos() {
     final configName = _nameController.text.trim();
     final host = _hostController.text.trim();
@@ -215,6 +219,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
     );
   }
 
+  /// Limpia todos los campos del formulario.
   void _borrarCampos() {
     setState(() {
       _nameController.clear();
@@ -224,6 +229,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
     });
   }
 
+  /// Valida credenciales SSH y navega a la pantalla de gestión remota.
   Future<void> _conectar() async {
     final hostOrUri = _hostController.text.trim();
     final formPort = int.tryParse(_portController.text.trim());

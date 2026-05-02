@@ -1,5 +1,6 @@
 import 'remote_entry.dart';
 
+/// Instantánea inmutable del contenido de un directorio remoto.
 class RemoteDirectorySnapshot {
   const RemoteDirectorySnapshot({
     required this.directory,

@@ -7,6 +7,7 @@ import '../widgets/server_config/connection_form_panel.dart';
 import '../widgets/server_config/saved_configs_panel.dart';
 import '../widgets/shared/processing_overlay.dart';
 
+/// Pantalla inicial para configurar y probar la conexión SSH.
 class ServerConfigScreen extends StatefulWidget {
   const ServerConfigScreen({super.key});
 
@@ -29,21 +30,25 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     _reloadSavedConfigs();
   }
 
+  /// Carga el listado persistido de configuraciones SSH.
   void _reloadSavedConfigs() {
     setState(() {
       _savedConfigs = _configStorageService.readAll();
     });
   }
 
+  /// Carga una configuración guardada en el formulario.
   void _selectConfig(ServerConnectionConfig config) {
     _formKey.currentState?.loadConfig(config);
   }
 
+  /// Elimina una configuración guardada y refresca la lista.
   void _deleteConfig(ServerConnectionConfig config) {
     _configStorageService.delete(config);
     _reloadSavedConfigs();
   }
 
+  /// Actualiza el estado visual de conexión en progreso.
   void _setConnectingState(bool isConnecting) {
     if (_isConnecting == isConnecting) {
       return;

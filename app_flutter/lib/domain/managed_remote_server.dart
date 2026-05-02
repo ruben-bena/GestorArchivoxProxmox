@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+/// Tipos de proyectos remotos soportados por el gestor.
 enum ManagedServerType { nodeJs, java }
 
+/// Extensión para centralizar la presentación visual por tipo de servidor.
 extension ManagedServerTypePresentation on ManagedServerType {
+  /// Nombre legible para UI.
   String get label {
     switch (this) {
       case ManagedServerType.nodeJs:
@@ -12,6 +15,7 @@ extension ManagedServerTypePresentation on ManagedServerType {
     }
   }
 
+  /// Icono representativo para UI.
   IconData get icon {
     switch (this) {
       case ManagedServerType.nodeJs:
@@ -21,6 +25,7 @@ extension ManagedServerTypePresentation on ManagedServerType {
     }
   }
 
+  /// Color de acento para UI.
   Color get accentColor {
     switch (this) {
       case ManagedServerType.nodeJs:
@@ -30,6 +35,7 @@ extension ManagedServerTypePresentation on ManagedServerType {
     }
   }
 
+  /// Puerto por defecto cuando no se puede detectar uno explícito.
   int get defaultPort {
     switch (this) {
       case ManagedServerType.nodeJs:
@@ -40,6 +46,7 @@ extension ManagedServerTypePresentation on ManagedServerType {
   }
 }
 
+/// Modelo de un servidor detectado dentro del sistema de archivos remoto.
 class ManagedRemoteServer {
   const ManagedRemoteServer({
     required this.name,
@@ -61,10 +68,12 @@ class ManagedRemoteServer {
   final int? forwardedLocalPort;
   final int? forwardedRemotePort;
 
+  /// Indica si existe un túnel local→remoto activo para este servidor.
   bool get hasActivePortForward {
     return forwardedLocalPort != null && forwardedRemotePort != null;
   }
 
+  /// Devuelve una copia del servidor aplicando cambios parciales.
   ManagedRemoteServer copyWith({
     String? name,
     String? fullPath,

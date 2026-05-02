@@ -1,3 +1,4 @@
+/// Representa un archivo/carpeta remota obtenida por SFTP.
 class RemoteEntry {
   const RemoteEntry({
     required this.name,
@@ -23,6 +24,7 @@ class RemoteEntry {
   final int? size;
   final int? modifyTime;
 
+  /// Etiqueta de tipo usada en la UI.
   String get typeLabel {
     if (isDirectory) {
       return 'Carpeta';
@@ -33,6 +35,7 @@ class RemoteEntry {
     return 'Archivo';
   }
 
+  /// Crea una copia con metadatos opcionalmente actualizados o limpiados.
   RemoteEntry copyWith({
     int? modeValue,
     int? userId,

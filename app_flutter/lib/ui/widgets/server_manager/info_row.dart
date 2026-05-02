@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Fila simple `etiqueta: valor` usada en diálogos de detalle.
 class InfoRow extends StatelessWidget {
   const InfoRow({
     super.key,

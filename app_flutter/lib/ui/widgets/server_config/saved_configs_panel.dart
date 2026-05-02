@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/server_connection_config.dart';
 
+/// Panel lateral con las configuraciones SSH guardadas en disco.
 class SavedConfigsPanel extends StatelessWidget {
   const SavedConfigsPanel({
     super.key,

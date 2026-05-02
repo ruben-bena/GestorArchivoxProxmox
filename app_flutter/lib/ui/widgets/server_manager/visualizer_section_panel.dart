@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../domain/remote_entry.dart';
 import 'remote_entries_content.dart';
 
+/// Panel que combina listado de entradas y visualización proporcional por tamaño.
 class VisualizerSectionPanel extends StatelessWidget {
   const VisualizerSectionPanel({
     super.key,
@@ -31,6 +32,7 @@ class VisualizerSectionPanel extends StatelessWidget {
   final ValueChanged<RemoteEntry> onOpenDirectory;
   final void Function(EntryAction action, RemoteEntry entry) onActionSelected;
 
+  /// Paleta para sectores que representan carpetas.
   static const List<Color> _directoryPalette = [
     Colors.amberAccent,
     Colors.amber,
@@ -40,6 +42,7 @@ class VisualizerSectionPanel extends StatelessWidget {
     Colors.limeAccent,
   ];
 
+  /// Paleta para sectores que representan archivos.
   static const List<Color> _filePalette = [
     Colors.deepPurpleAccent,
     Colors.purpleAccent,
@@ -49,6 +52,7 @@ class VisualizerSectionPanel extends StatelessWidget {
     Colors.cyanAccent,
   ];
 
+  /// Convierte las entradas en porciones ponderadas para la visualización circular.
   List<_VisualizerSlice> get _slices {
     final sourceEntries = entries
         .where((entry) => !entry.isSymbolicLink)
@@ -73,6 +77,7 @@ class VisualizerSectionPanel extends StatelessWidget {
     }).toList();
   }
 
+  /// Formatea bytes en unidades legibles.
   String _formatBytes(int bytes, {String zeroLabel = 'No disponible'}) {
     if (bytes <= 0) {
       return zeroLabel;
@@ -90,6 +95,7 @@ class VisualizerSectionPanel extends StatelessWidget {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
+  /// Formato de tamaño para la leyenda.
   String _formatEntrySize(RemoteEntry entry) {
     return _formatBytes(entry.size ?? 0);
   }
@@ -226,6 +232,7 @@ class VisualizerSectionPanel extends StatelessWidget {
   }
 }
 
+/// Leyenda lateral con color, nombre y tamaño de cada porción.
 class _VisualizationLegend extends StatelessWidget {
   const _VisualizationLegend({
     required this.slices,
@@ -286,8 +293,12 @@ class _VisualizationLegend extends StatelessWidget {
   }
 }
 
+/// Painter que dibuja un anillo proporcional al peso de cada entrada.
 class _DirectoryBaobabPainter extends CustomPainter {
   const _DirectoryBaobabPainter({required this.slices});
+
+  static const double _fullCircleRadians = 6.28318530718;
+  static const double _startAtTopRadians = -1.57079632679;
 
   final List<_VisualizerSlice> slices;
 
@@ -309,10 +320,10 @@ class _DirectoryBaobabPainter extends CustomPainter {
     }
 
     final total = slices.fold<double>(0, (sum, slice) => sum + slice.weight);
-    var startAngle = -1.57079632679;
+    var startAngle = _startAtTopRadians;
 
     for (final slice in slices) {
-      final sweep = (slice.weight / total) * 6.28318530718;
+      final sweep = (slice.weight / total) * _fullCircleRadians;
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = ringWidth
@@ -340,6 +351,7 @@ class _DirectoryBaobabPainter extends CustomPainter {
   }
 }
 
+/// Nodo de datos para cada sector del visualizador.
 class _VisualizerSlice {
   const _VisualizerSlice({
     required this.entry,

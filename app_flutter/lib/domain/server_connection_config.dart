@@ -1,3 +1,4 @@
+/// Configuración persistida de conexión SSH para reutilizarla en el formulario.
 class ServerConnectionConfig {
   const ServerConnectionConfig({
     required this.name,
@@ -11,6 +12,7 @@ class ServerConnectionConfig {
   final String port;
   final String keyPath;
 
+  /// Reconstruye la configuración desde JSON tolerando valores nulos.
   factory ServerConnectionConfig.fromJson(Map<String, dynamic> json) {
     return ServerConnectionConfig(
       name: json['name']?.toString() ?? '',
@@ -20,6 +22,7 @@ class ServerConnectionConfig {
     );
   }
 
+  /// Serializa la configuración al formato que se guarda en disco.
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -29,6 +32,7 @@ class ServerConnectionConfig {
     };
   }
 
+  /// Compara si dos configuraciones representan exactamente la misma entrada.
   bool sameIdentityAs(ServerConnectionConfig other) {
     return name == other.name &&
         host == other.host &&

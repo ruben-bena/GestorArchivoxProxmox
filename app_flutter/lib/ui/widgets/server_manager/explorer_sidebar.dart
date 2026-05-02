@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Sidebar para alternar entre secciones principales del gestor remoto.
 class ExplorerSidebar extends StatelessWidget {
   const ExplorerSidebar({
     super.key,

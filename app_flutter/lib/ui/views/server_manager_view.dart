@@ -16,6 +16,7 @@ import '../widgets/server_manager/visualizer_section_panel.dart';
 import '../widgets/shared/feedback_snackbar.dart';
 import '../widgets/shared/processing_overlay.dart';
 
+/// Pantalla principal de administración remota (explorador + servidores + visualizador).
 class ServerManagerScreen extends StatefulWidget {
   const ServerManagerScreen({
     super.key,
@@ -37,8 +38,10 @@ class ServerManagerScreen extends StatefulWidget {
 }
 
 class _ServerManagerScreenState extends State<ServerManagerScreen> {
+  /// Nombre interno de la sección de gestión de servidores.
   static const String _serversSectionLabel = 'Servidores';
 
+  /// Secciones disponibles en el sidebar de navegación.
   static const List<({String label, IconData icon})> _sections = [
     (label: 'Carpetas', icon: Icons.folder_outlined),
     (label: _serversSectionLabel, icon: Icons.storage_outlined),
@@ -88,8 +91,10 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     super.dispose();
   }
 
+  /// Indica si el usuario se encuentra en la raíz remota.
   bool get _isRootDirectory => _currentDirectory == '/';
 
+  /// Carga un directorio remoto y sincroniza la detección de servidores.
   Future<void> _loadDirectory(String directory) async {
     setState(() {
       _isLoading = true;
@@ -132,6 +137,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     }
   }
 
+  /// Refresca la lista de servidores administrables para el directorio actual.
   Future<void> _refreshManagedServers({
     String? directory,
     List<RemoteEntry>? entries,
@@ -173,6 +179,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     }
   }
 
+  /// Mezcla estado de túneles activos en la lista de servidores detectados.
   List<ManagedRemoteServer> _mergePortForwardSessions(
     List<ManagedRemoteServer> servers,
   ) {
@@ -196,6 +203,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
         .toList(growable: false);
   }
 
+  /// Ejecuta una acción bloqueante mostrando overlay de progreso.
   Future<void> _runProcessingAction(
     String label,
     Future<void> Function() action,
@@ -220,6 +228,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     }
   }
 
+  /// Navega al directorio padre del path remoto actual.
   void _openParentDirectory() {
     if (_isRootDirectory) {
       return;
@@ -237,10 +246,12 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     _loadDirectory(parentDirectory);
   }
 
+  /// Navega al subdirectorio seleccionado.
   void _openChildDirectory(RemoteEntry entry) {
     _loadDirectory(entry.fullPath);
   }
 
+  /// Muestra diálogo para solicitar nuevo nombre de una entrada remota.
   Future<String?> _showRenameDialog(RemoteEntry entry) async {
     final controller = TextEditingController(text: entry.name);
 
@@ -279,6 +290,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     );
   }
 
+  /// Solicita confirmación antes de borrar una entrada remota.
   Future<bool> _showDeleteConfirmation(RemoteEntry entry) async {
     final result = await showDialog<bool>(
       context: context,
@@ -310,6 +322,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     return result ?? false;
   }
 
+  /// Enruta la acción de menú contextual a su manejador específico.
   Future<void> _handleEntryAction(EntryAction action, RemoteEntry entry) async {
     switch (action) {
       case EntryAction.rename:
@@ -330,6 +343,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     }
   }
 
+  /// Renombra una entrada remota y refresca el directorio.
   Future<void> _renameEntry(RemoteEntry entry) async {
     final newName = await _showRenameDialog(entry);
     if (newName == null || newName.isEmpty || newName == entry.name) {
@@ -381,6 +395,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Borra una entrada remota tras confirmación del usuario.
   Future<void> _deleteEntry(RemoteEntry entry) async {
     final confirmed = await _showDeleteConfirmation(entry);
     if (!confirmed) {
@@ -414,6 +429,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Descarga una entrada remota a una carpeta local seleccionada.
   Future<void> _downloadEntry(RemoteEntry entry) async {
     final localDirectory = await FilePicker.platform.getDirectoryPath(
       dialogTitle: 'Seleccionar destino local',
@@ -453,6 +469,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Ejecuta descompresión remota de archivo ZIP.
   Future<void> _extractZipEntry(RemoteEntry entry) async {
     await _runProcessingAction('Descomprimiendo archivo ZIP...', () async {
       try {
@@ -481,6 +498,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Recupera y muestra metadatos detallados de una entrada remota.
   Future<void> _showEntryInfo(RemoteEntry entry) async {
     await _runProcessingAction('Cargando información...', () async {
       try {
@@ -568,6 +586,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Arranca un servidor remoto detectado y refresca estado.
   Future<void> _startManagedServer(ManagedRemoteServer server) async {
     await _runProcessingAction('Arrancando servidor...', () async {
       try {
@@ -597,6 +616,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Detiene un servidor remoto detectado y refresca estado.
   Future<void> _stopManagedServer(ManagedRemoteServer server) async {
     await _runProcessingAction('Parando servidor...', () async {
       try {
@@ -625,6 +645,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Reinicia un servidor remoto detectado y refresca estado.
   Future<void> _restartManagedServer(ManagedRemoteServer server) async {
     await _runProcessingAction('Reiniciando servidor...', () async {
       try {
@@ -654,6 +675,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Abre un túnel SSH local→remoto para el puerto de un servidor.
   Future<void> _redirectServerPort(ManagedRemoteServer server) async {
     final selectedPorts = await _showPortRedirectDialog(server);
     if (selectedPorts == null) {
@@ -695,6 +717,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Cierra el túnel SSH activo asociado a un servidor.
   Future<void> _closePortRedirect(ManagedRemoteServer server) async {
     await _runProcessingAction('Cerrando túnel SSH...', () async {
       try {
@@ -723,6 +746,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Diálogo para capturar puertos local/remoto de una redirección SSH.
   Future<({int localPort, int remotePort})?> _showPortRedirectDialog(
     ManagedRemoteServer server,
   ) async {
@@ -816,10 +840,12 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     return result;
   }
 
+  /// Valida rango de puertos TCP.
   bool _isValidPort(int? value) {
     return value != null && value >= 1 && value <= 65535;
   }
 
+  /// Muestra opciones para subir archivos o carpeta.
   Future<void> _showUploadOptions() async {
     final action = await showModalBottomSheet<_UploadAction>(
       context: context,
@@ -863,6 +889,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     await _uploadDirectory();
   }
 
+  /// Sube múltiples archivos locales al directorio remoto actual.
   Future<void> _uploadFiles() async {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
@@ -908,6 +935,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Sube una carpeta local completa al directorio remoto actual.
   Future<void> _uploadDirectory() async {
     final localDirectory = await FilePicker.platform.getDirectoryPath(
       dialogTitle: 'Seleccionar carpeta para subir',
@@ -948,6 +976,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  /// Selecciona panel derecho según sección activa.
   Widget _buildRightPanel() {
     switch (_selectedSection) {
       case 'Carpetas':

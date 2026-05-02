@@ -3,16 +3,19 @@ import 'dart:io';
 
 import '../domain/port_forward_session.dart';
 
+/// Administra procesos SSH locales que exponen puertos remotos en localhost.
 class PortForwardingService {
   final Map<String, ({Process process, PortForwardSession session})> _sessions =
       <String, ({Process process, PortForwardSession session})>{};
 
+  /// Vista de solo lectura de sesiones activas por ruta de servidor remoto.
   Map<String, PortForwardSession> get sessionsByServerPath {
     return Map.unmodifiable(
       _sessions.map((key, value) => MapEntry(key, value.session)),
     );
   }
 
+  /// Inicia (o reinicia) un túnel SSH para un servidor remoto específico.
   Future<PortForwardSession> startPortForward({
     required String serverPath,
     required String host,
@@ -74,6 +77,7 @@ class PortForwardingService {
     return session;
   }
 
+  /// Cierra de forma segura el túnel asociado al servidor indicado.
   Future<void> stopPortForward(String serverPath) async {
     final activeSession = _sessions.remove(serverPath);
     if (activeSession == null) {
@@ -96,6 +100,7 @@ class PortForwardingService {
     }
   }
 
+  /// Libera todos los túneles activos.
   Future<void> dispose() async {
     final serverPaths = _sessions.keys.toList(growable: false);
     for (final serverPath in serverPaths) {

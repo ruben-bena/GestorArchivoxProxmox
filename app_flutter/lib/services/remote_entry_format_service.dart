@@ -1,16 +1,20 @@
+/// Utilidades para presentar metadatos de [RemoteEntry] en la interfaz.
 class RemoteEntryFormatService {
   const RemoteEntryFormatService();
 
+  /// Extrae el propietario del campo `longName` estilo `ls -l`.
   String? extractOwnerFromLongName(String longName) {
     final parts = longName.trim().split(RegExp(r'\s+'));
     return parts.length >= 4 ? parts[2] : null;
   }
 
+  /// Extrae el grupo del campo `longName` estilo `ls -l`.
   String? extractGroupFromLongName(String longName) {
     final parts = longName.trim().split(RegExp(r'\s+'));
     return parts.length >= 5 ? parts[3] : null;
   }
 
+  /// Convierte permisos binarios (`mode`) a formato simbólico Unix.
   String formatPermissionString(int? modeValue) {
     if (modeValue == null) {
       return 'No disponible';
@@ -35,6 +39,7 @@ class RemoteEntryFormatService {
         '${bit(modeValue, 0x4, 'r')}${bit(modeValue, 0x2, 'w')}${bit(modeValue, 0x1, 'x')}';
   }
 
+  /// Convierte permisos binarios (`mode`) a notación octal.
   String formatPermissionOctal(int? modeValue) {
     if (modeValue == null) {
       return '---';
@@ -43,6 +48,7 @@ class RemoteEntryFormatService {
     return (modeValue & 0x1FF).toRadixString(8).padLeft(3, '0');
   }
 
+  /// Formatea tamaño en unidades legibles (B/KB/MB/GB).
   String formatSize(int? size) {
     if (size == null) {
       return 'No disponible';
@@ -61,6 +67,7 @@ class RemoteEntryFormatService {
     return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
+  /// Formatea timestamp Unix a fecha local legible.
   String formatUnixTime(int? unixSeconds) {
     if (unixSeconds == null) {
       return 'No disponible';

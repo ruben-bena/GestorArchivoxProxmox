@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Capa modal de bloqueo con spinner y etiqueta de operación en curso.
 class ProcessingOverlay extends StatelessWidget {
   const ProcessingOverlay({
     super.key,

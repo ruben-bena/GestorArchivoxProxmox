@@ -1,3 +1,4 @@
+/// Metadatos de una sesión de túnel SSH abierta para un servidor remoto.
 class PortForwardSession {
   const PortForwardSession({
     required this.serverPath,

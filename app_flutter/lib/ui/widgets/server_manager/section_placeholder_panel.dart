@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Tarjeta de marcador para secciones sin contenido específico.
 class SectionPlaceholderPanel extends StatelessWidget {
   const SectionPlaceholderPanel({
     super.key,

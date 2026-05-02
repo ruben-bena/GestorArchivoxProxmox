@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/remote_entry.dart';
 
+/// Acciones disponibles para cada entrada remota en el listado.
 enum EntryAction { rename, download, extractZip, delete, info }
 
+/// Estado visual del contenido de un directorio: carga, error, vacío o listado.
 class RemoteEntriesContent extends StatelessWidget {
   const RemoteEntriesContent({
     super.key,
