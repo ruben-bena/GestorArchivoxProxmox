@@ -5,8 +5,11 @@ import '../../domain/remote_entry.dart';
 import '../../services/remote_entry_format_service.dart';
 import '../../services/sftp_file_service.dart';
 import '../widgets/server_manager/explorer_sidebar.dart';
+import '../widgets/server_manager/folders_section_panel.dart';
 import '../widgets/server_manager/info_row.dart';
 import '../widgets/server_manager/remote_entries_content.dart';
+import '../widgets/server_manager/section_placeholder_panel.dart';
+import '../widgets/server_manager/visualizer_section_panel.dart';
 import '../widgets/shared/feedback_snackbar.dart';
 import '../widgets/shared/processing_overlay.dart';
 
@@ -519,6 +522,33 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     });
   }
 
+  Widget _buildRightPanel() {
+    switch (_selectedSection) {
+      case 'Carpetas':
+        return FoldersSectionPanel(
+          currentDirectory: _currentDirectory,
+          isLoading: _isLoading,
+          isRootDirectory: _isRootDirectory,
+          errorMessage: _errorMessage,
+          entries: _entries,
+          onUpload: _showUploadOptions,
+          onGoParent: _openParentDirectory,
+          onRefresh: () => _loadDirectory(_currentDirectory),
+          onRetry: () => _loadDirectory(_currentDirectory),
+          onOpenDirectory: _openChildDirectory,
+          onActionSelected: _handleEntryAction,
+        );
+      case 'Visualizador':
+        return const VisualizerSectionPanel();
+      default:
+        return const SectionPlaceholderPanel(
+          title: 'Servidores Java/NodeJS',
+          icon: Icons.storage_outlined,
+          message: 'Panel reservado para próximos módulos.',
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -547,83 +577,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
                   const SizedBox(width: 24),
                   Expanded(
                     flex: 3,
-                    child: Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.folder_open,
-                                  size: 28,
-                                  color: Colors.deepPurpleAccent,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Directorio actual',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _currentDirectory,
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: _isLoading ? null : _showUploadOptions,
-                                  tooltip: 'Subir al servidor',
-                                  icon: const Icon(Icons.add),
-                                ),
-                                if (!_isRootDirectory)
-                                  IconButton(
-                                    onPressed: _isLoading
-                                        ? null
-                                        : _openParentDirectory,
-                                    tooltip: 'Subir un nivel',
-                                    icon: const Icon(Icons.arrow_upward),
-                                  ),
-                                IconButton(
-                                  onPressed: _isLoading
-                                      ? null
-                                      : () => _loadDirectory(_currentDirectory),
-                                  tooltip: 'Recargar',
-                                  icon: const Icon(Icons.refresh),
-                                ),
-                              ],
-                            ),
-                            const Divider(height: 24),
-                            Expanded(
-                              child: RemoteEntriesContent(
-                                isLoading: _isLoading,
-                                errorMessage: _errorMessage,
-                                entries: _entries,
-                                onRetry: () => _loadDirectory(_currentDirectory),
-                                onOpenDirectory: _openChildDirectory,
-                                onActionSelected: _handleEntryAction,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    child: _buildRightPanel(),
                   ),
                 ],
               ),
