@@ -41,7 +41,8 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
   ];
 
   late final SftpFileService _sftpService;
-  final RemoteEntryFormatService _formatService = const RemoteEntryFormatService();
+  final RemoteEntryFormatService _formatService =
+      const RemoteEntryFormatService();
 
   List<RemoteEntry> _entries = const [];
   String _selectedSection = 'Carpetas';
@@ -73,6 +74,13 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
 
     try {
       final snapshot = await _sftpService.loadDirectory(directory);
+      List<RemoteEntry> resolvedEntries = snapshot.entries;
+
+      try {
+        resolvedEntries = await _sftpService.resolveEntriesWithContentSize(
+          snapshot.entries,
+        );
+      } catch (_) {}
 
       if (!mounted) {
         return;
@@ -80,7 +88,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
 
       setState(() {
         _currentDirectory = snapshot.directory;
-        _entries = snapshot.entries;
+        _entries = resolvedEntries;
         _isLoading = false;
       });
     } catch (error) {
@@ -360,13 +368,17 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
                     InfoRow(
                       label: 'Usuario propietario',
                       value:
-                          _formatService.extractOwnerFromLongName(latestEntry.longName) ??
+                          _formatService.extractOwnerFromLongName(
+                            latestEntry.longName,
+                          ) ??
                           (latestEntry.userId?.toString() ?? 'No disponible'),
                     ),
                     InfoRow(
                       label: 'Grupo propietario',
                       value:
-                          _formatService.extractGroupFromLongName(latestEntry.longName) ??
+                          _formatService.extractGroupFromLongName(
+                            latestEntry.longName,
+                          ) ??
                           (latestEntry.groupId?.toString() ?? 'No disponible'),
                     ),
                     InfoRow(
@@ -375,7 +387,9 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
                     ),
                     InfoRow(
                       label: 'Última modificación',
-                      value: _formatService.formatUnixTime(latestEntry.modifyTime),
+                      value: _formatService.formatUnixTime(
+                        latestEntry.modifyTime,
+                      ),
                     ),
                     InfoRow(
                       label: 'Detalle remoto',
@@ -539,7 +553,19 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           onActionSelected: _handleEntryAction,
         );
       case 'Visualizador':
-        return const VisualizerSectionPanel();
+        return VisualizerSectionPanel(
+          currentDirectory: _currentDirectory,
+          isLoading: _isLoading,
+          isRootDirectory: _isRootDirectory,
+          errorMessage: _errorMessage,
+          entries: _entries,
+          onUpload: _showUploadOptions,
+          onGoParent: _openParentDirectory,
+          onRefresh: () => _loadDirectory(_currentDirectory),
+          onRetry: () => _loadDirectory(_currentDirectory),
+          onOpenDirectory: _openChildDirectory,
+          onActionSelected: _handleEntryAction,
+        );
       default:
         return const SectionPlaceholderPanel(
           title: 'Servidores Java/NodeJS',
@@ -575,16 +601,12 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
                     ),
                   ),
                   const SizedBox(width: 24),
-                  Expanded(
-                    flex: 3,
-                    child: _buildRightPanel(),
-                  ),
+                  Expanded(flex: 3, child: _buildRightPanel()),
                 ],
               ),
             ),
           ),
-          if (_isProcessing)
-            ProcessingOverlay(label: _processingLabel),
+          if (_isProcessing) ProcessingOverlay(label: _processingLabel),
         ],
       ),
     );
