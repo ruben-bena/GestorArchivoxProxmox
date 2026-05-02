@@ -74,13 +74,6 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
 
     try {
       final snapshot = await _sftpService.loadDirectory(directory);
-      List<RemoteEntry> resolvedEntries = snapshot.entries;
-
-      try {
-        resolvedEntries = await _sftpService.resolveEntriesWithContentSize(
-          snapshot.entries,
-        );
-      } catch (_) {}
 
       if (!mounted) {
         return;
@@ -88,7 +81,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
 
       setState(() {
         _currentDirectory = snapshot.directory;
-        _entries = resolvedEntries;
+        _entries = snapshot.entries;
         _isLoading = false;
       });
     } catch (error) {

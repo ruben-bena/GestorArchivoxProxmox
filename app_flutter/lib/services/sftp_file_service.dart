@@ -49,35 +49,6 @@ class SftpFileService {
     });
   }
 
-  Future<List<RemoteEntry>> resolveEntriesWithContentSize(
-    List<RemoteEntry> entries,
-  ) async {
-    if (entries.isEmpty) {
-      return const [];
-    }
-
-    return _withSftp((sftp, client) async {
-      final cache = <String, int>{};
-      final resolvedEntries = <RemoteEntry>[];
-
-      for (final entry in entries) {
-        try {
-          final effectiveSize = await _calculateEffectiveSizeRecursive(
-            sftp,
-            entry.fullPath,
-            cache,
-          );
-
-          resolvedEntries.add(entry.copyWith(size: effectiveSize));
-        } catch (_) {
-          resolvedEntries.add(entry);
-        }
-      }
-
-      return resolvedEntries;
-    });
-  }
-
   Future<void> rename({
     required String currentDirectory,
     required RemoteEntry entry,
@@ -343,44 +314,5 @@ class SftpFileService {
     } on SftpStatusError {
       await sftp.mkdir(remoteDirectory);
     }
-  }
-
-  Future<int> _calculateEffectiveSizeRecursive(
-    SftpClient sftp,
-    String remotePath,
-    Map<String, int> cache,
-  ) async {
-    final cachedSize = cache[remotePath];
-    if (cachedSize != null) {
-      return cachedSize;
-    }
-
-    final attrs = await sftp.stat(remotePath, followLink: false);
-    final rawSize = attrs.size ?? 0;
-    final normalizedSize = rawSize < 0 ? 0 : rawSize;
-
-    if (attrs.isSymbolicLink || !attrs.isDirectory) {
-      cache[remotePath] = normalizedSize;
-      return normalizedSize;
-    }
-
-    var total = 0;
-    final children = await sftp.listdir(remotePath);
-    for (final child in children) {
-      if (child.filename == '.' || child.filename == '..') {
-        continue;
-      }
-
-      final childPath = _joinRemotePath(remotePath, child.filename);
-
-      try {
-        total += await _calculateEffectiveSizeRecursive(sftp, childPath, cache);
-      } on SftpStatusError {
-        continue;
-      }
-    }
-
-    cache[remotePath] = total;
-    return total;
   }
 }
