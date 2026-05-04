@@ -9,9 +9,11 @@ void showFeedbackSnackbar(
 }) {
   final messenger = ScaffoldMessenger.of(context);
   final theme = Theme.of(context);
+  // Punto visual rápido para distinguir éxito y error sin leer el texto completo.
   final indicatorColor = isSuccess ? Colors.green : Colors.red;
 
   messenger
+    // Se limpia la cola para mostrar siempre el último resultado relevante.
     ..hideCurrentSnackBar()
     ..clearSnackBars()
     ..showSnackBar(

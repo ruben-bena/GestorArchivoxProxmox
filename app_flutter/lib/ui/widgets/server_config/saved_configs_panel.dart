@@ -40,6 +40,7 @@ class SavedConfigsPanel extends StatelessWidget {
             ),
             const Divider(height: 24),
             Expanded(
+              // Estado vacío cuando aún no se ha persistido ninguna conexión.
               child: configs.isEmpty
                   ? const Center(
                       child: Column(
@@ -64,6 +65,7 @@ class SavedConfigsPanel extends StatelessWidget {
                       separatorBuilder: (context, index) =>
                           const Divider(height: 1),
                       itemBuilder: (context, index) {
+                        // Cada elemento representa una configuración reutilizable completa.
                         final config = configs[index];
 
                         return ListTile(

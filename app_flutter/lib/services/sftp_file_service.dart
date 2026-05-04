@@ -37,6 +37,7 @@ class SftpFileService {
               )
               .toList()
             ..sort((a, b) {
+              // Primero carpetas y después archivos para navegación más natural.
               if (a.isDirectory != b.isDirectory) {
                 return a.isDirectory ? -1 : 1;
               }
@@ -86,6 +87,7 @@ class SftpFileService {
   }) async {
     await _withSftp((sftp, client) async {
       for (final path in localPaths) {
+        // Conserva el nombre original del archivo dentro del directorio remoto destino.
         final remotePath = _joinRemotePath(
           currentDirectory,
           _localBasename(path),
@@ -125,6 +127,7 @@ class SftpFileService {
 
   /// Descomprime un archivo `.zip` en el servidor remoto.
   Future<void> extractZipEntry(RemoteEntry entry) async {
+    // Validación de seguridad: solo archivos ZIP regulares son extraíbles.
     if (entry.isDirectory || !entry.name.toLowerCase().endsWith('.zip')) {
       throw Exception('Solo se pueden descomprimir archivos .zip.');
     }
@@ -257,6 +260,7 @@ unzip -o '$escapedFilename'
     final attrs = await sftp.stat(remotePath, followLink: false);
 
     if (attrs.isDirectory && !attrs.isSymbolicLink) {
+      // DFS recursivo: elimina hijos antes de remover la carpeta contenedora.
       final children = await sftp.listdir(remotePath);
       for (final child in children) {
         if (child.filename == '.' || child.filename == '..') {
@@ -283,6 +287,7 @@ unzip -o '$escapedFilename'
   ) async {
     final attrs = await sftp.stat(remotePath, followLink: false);
 
+    // Las carpetas delegan en descarga recursiva para preservar jerarquía.
     if (attrs.isDirectory && !attrs.isSymbolicLink) {
       await _downloadRemoteDirectory(sftp, remotePath, localPath);
       return;
@@ -315,6 +320,7 @@ unzip -o '$escapedFilename'
       if (childIsDirectory) {
         await _downloadRemoteDirectory(sftp, remoteChildPath, localChildPath);
       } else {
+        // Descarga de archivo simple en la misma rama local del árbol.
         final output = File(localChildPath).openWrite();
         await sftp.download(remoteChildPath, output, closeDestination: true);
       }
@@ -361,6 +367,7 @@ unzip -o '$escapedFilename'
       if (entity is File) {
         await _uploadLocalFile(sftp, entity.path, remotePath);
       } else if (entity is Directory) {
+        // Repite recursivamente para replicar la estructura de carpetas en remoto.
         await _uploadLocalDirectory(sftp, entity.path, remotePath);
       }
     }
@@ -374,10 +381,12 @@ unzip -o '$escapedFilename'
     try {
       final attrs = await sftp.stat(remoteDirectory, followLink: false);
       if (!attrs.isDirectory) {
+        // Evita sobreescribir archivos existentes cuando se esperaba carpeta.
         throw Exception('Ya existe un archivo con el mismo nombre.');
       }
       return;
     } on SftpStatusError {
+      // Si no existe, se crea de forma idempotente para continuar la carga.
       await sftp.mkdir(remoteDirectory);
     }
   }

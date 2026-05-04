@@ -73,6 +73,7 @@ class FoldersSectionPanel extends StatelessWidget {
                   ),
                 ),
                 IconButton(
+                  // Toda acción se bloquea durante carga para evitar carreras de estado.
                   onPressed: isLoading ? null : onUpload,
                   tooltip: 'Subir al servidor',
                   icon: const Icon(Icons.add),
@@ -92,6 +93,7 @@ class FoldersSectionPanel extends StatelessWidget {
             ),
             const Divider(height: 24),
             Expanded(
+              // Delega la máquina de estados (cargando/error/vacío/lista) al widget de contenido.
               child: RemoteEntriesContent(
                 isLoading: isLoading,
                 errorMessage: errorMessage,

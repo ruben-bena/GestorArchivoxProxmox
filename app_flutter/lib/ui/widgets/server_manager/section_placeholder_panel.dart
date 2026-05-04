@@ -22,6 +22,7 @@ class SectionPlaceholderPanel extends StatelessWidget {
         padding: const EdgeInsets.all(20.0),
         child: Center(
           child: Column(
+            // El contenido se centra para que funcione como estado vacío reusable.
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 42, color: Colors.deepPurpleAccent),

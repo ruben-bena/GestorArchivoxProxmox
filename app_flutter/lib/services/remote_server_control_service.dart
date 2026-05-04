@@ -37,6 +37,7 @@ class RemoteServerControlService {
       );
 
       for (final candidate in candidatePaths) {
+        // Evita reanalizar rutas repetidas cuando aparecen por múltiples ramas.
         if (!inspectedPaths.add(candidate.path)) {
           continue;
         }
@@ -50,6 +51,7 @@ class RemoteServerControlService {
 
         final serverType = _resolveServerType(markerFiles);
         if (serverType == null) {
+          // Directorio sin marcadores de proyecto soportado.
           continue;
         }
 
@@ -81,6 +83,7 @@ class RemoteServerControlService {
       }
 
       servers.sort((a, b) {
+        // Prioriza servicios activos para facilitar operaciones inmediatas en UI.
         if (a.isRunning != b.isRunning) {
           return a.isRunning ? -1 : 1;
         }
@@ -104,6 +107,7 @@ class RemoteServerControlService {
     required int maxDepth,
   }) async {
     final normalizedDepth = maxDepth < 0 ? 0 : maxDepth;
+    // Se usa cola FIFO para recorrer por niveles y controlar la profundidad.
     final pending = <({String name, String path, int depth})>[
       (name: _basename(rootDirectory), path: rootDirectory, depth: 0),
     ];
@@ -112,6 +116,7 @@ class RemoteServerControlService {
 
     if (normalizedDepth >= 1) {
       for (final entry in rootEntries) {
+        // Solo se expande a directorios reales (sin seguir symlinks).
         if (!entry.isDirectory || entry.isSymbolicLink) {
           continue;
         }
@@ -127,6 +132,7 @@ class RemoteServerControlService {
       candidates.add((name: current.name, path: current.path));
 
       if (current.depth >= normalizedDepth) {
+        // Límite alcanzado: no se encolan más hijos para este nodo.
         continue;
       }
 
@@ -141,6 +147,7 @@ class RemoteServerControlService {
         if (!visitedPaths.add(child.path)) {
           continue;
         }
+        // Se conserva la profundidad para que el consumidor conozca alcance real.
         pending.add(
           (name: child.name, path: child.path, depth: current.depth + 1),
         );
@@ -341,6 +348,7 @@ printf '%s' "\$port"
 target_dir=\$(readlink -f '$escapedDirectory' 2>/dev/null || printf '%s' '$escapedDirectory')
 running='stopped'
 for proc in /proc/[0-9]*; do
+  # Lee cmdline y cwd para vincular proceso con el directorio del proyecto.
   cmd=\$(tr '\\0' ' ' < "\$proc/cmdline" 2>/dev/null || true)
   [ -z "\$cmd" ] && continue
   printf '%s' "\$cmd" | grep -Eq '$commandPattern' || continue

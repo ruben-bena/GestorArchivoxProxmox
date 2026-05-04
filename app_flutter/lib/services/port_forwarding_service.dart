@@ -25,6 +25,7 @@ class PortForwardingService {
         continue;
       }
 
+      // Si el proceso ya finalizó, la sesión se considera obsoleta y se purga.
       final exitCode = await _tryGetExitCode(activeSession.process);
       if (exitCode != null) {
         _sessions.remove(serverPath);
@@ -42,9 +43,11 @@ class PortForwardingService {
     required int remotePort,
     required int localPort,
   }) async {
+    // Limpia estado anterior y evita duplicar túneles para el mismo servidor.
     await syncSessions();
     await stopPortForward(serverPath);
 
+    // Reserva exclusiva de puerto local entre sesiones activas de la app.
     if (_sessions.values.any((item) => item.session.localPort == localPort)) {
       throw Exception(
         'El puerto local $localPort ya está en uso por otra redirección activa.',
@@ -82,11 +85,13 @@ class PortForwardingService {
     process.stdout.transform(utf8.decoder).listen(stdoutBuffer.write);
 
     const bootTimeout = Duration(seconds: 4);
+    // Si no sale en la ventana de arranque, se considera "vivo" y operativo.
     final exitCode = await Future.any<int>([
       process.exitCode,
       Future<int>.delayed(bootTimeout, () => -1),
     ]);
 
+    // Salida temprana: propaga stderr/stdout como mensaje de error accionable.
     if (exitCode != -1) {
       final stderrText = stderrBuffer.toString().trim();
       final stdoutText = stdoutBuffer.toString().trim();
@@ -106,6 +111,7 @@ class PortForwardingService {
     );
 
     _sessions[serverPath] = (process: process, session: session);
+    // Limpieza reactiva cuando el proceso termina por cualquier motivo.
     process.exitCode.then((_) {
       final active = _sessions[serverPath];
       if (active != null && identical(active.process, process)) {
@@ -124,11 +130,13 @@ class PortForwardingService {
       return;
     }
 
+    // Primer intento de cierre elegante para que SSH libere recursos correctamente.
     activeSession.process.kill(ProcessSignal.sigterm);
 
     try {
       await activeSession.process.exitCode.timeout(const Duration(seconds: 2));
     } catch (_) {
+      // Fallback forzado si el proceso no responde a SIGTERM.
       activeSession.process.kill(ProcessSignal.sigkill);
       try {
         await activeSession.process.exitCode.timeout(
@@ -158,6 +166,7 @@ class PortForwardingService {
         continue;
       }
 
+      // No bloquea el hilo: agenda limpieza cuando el proceso informe su salida.
       activeSession.process.exitCode.then((_) {
         final current = _sessions[serverPath];
         if (current != null && identical(current.process, activeSession.process)) {

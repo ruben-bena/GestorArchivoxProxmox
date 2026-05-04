@@ -16,6 +16,7 @@ class InfoRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
+        // Presentación vertical para mantener legible la etiqueta aunque el valor sea largo.
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(

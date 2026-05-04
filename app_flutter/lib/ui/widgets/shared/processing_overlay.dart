@@ -13,6 +13,7 @@ class ProcessingOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Positioned.fill(
       child: ColoredBox(
+        // Superposición semitransparente para deshabilitar interacción y mantener contexto visual.
         color: Colors.black54,
         child: Center(
           child: Column(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/managed_remote_server.dart';
 
+/// Panel de gestión de servidores detectados (Java/NodeJS) con acciones operativas.
 class ManagedServersSectionPanel extends StatelessWidget {
   const ManagedServersSectionPanel({
     super.key,
@@ -90,6 +91,7 @@ class ManagedServersSectionPanel extends StatelessWidget {
                 IconButton(
                   onPressed: isLoading || discoveryDepth <= 0
                       ? null
+                      // Impide profundidades negativas al decrementar.
                       : () => onDiscoveryDepthChanged(discoveryDepth - 1),
                   tooltip: 'Reducir profundidad',
                   icon: const Icon(Icons.remove_circle_outline),
@@ -108,6 +110,7 @@ class ManagedServersSectionPanel extends StatelessWidget {
                 IconButton(
                   onPressed: isLoading || discoveryDepth >= 10
                       ? null
+                      // Limita la exploración para evitar búsquedas excesivas.
                       : () => onDiscoveryDepthChanged(discoveryDepth + 1),
                   tooltip: 'Aumentar profundidad',
                   icon: const Icon(Icons.add_circle_outline),
@@ -131,6 +134,7 @@ class ManagedServersSectionPanel extends StatelessWidget {
   }
 
   Widget _buildBody() {
+    // Prioridad de estados: carga -> error -> vacío -> listado con tarjetas.
     if (isLoading) {
       return const Center(
         child: Column(
@@ -192,6 +196,7 @@ class ManagedServersSectionPanel extends StatelessWidget {
       itemCount: servers.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
+        // Cada tarjeta concentra el estado y las acciones de un servidor concreto.
         final server = servers[index];
 
         return _ManagedServerCard(
@@ -207,6 +212,7 @@ class ManagedServersSectionPanel extends StatelessWidget {
   }
 }
 
+/// Tarjeta visual con metadatos del servidor y botones de control remoto.
 class _ManagedServerCard extends StatelessWidget {
   const _ManagedServerCard({
     required this.server,
@@ -267,6 +273,7 @@ class _ManagedServerCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
+                        // Chips de resumen rápido para identificar tipo/estado/puerto.
                         _ChipLabel(
                           label: server.type.label,
                           color: accentColor,
@@ -305,6 +312,7 @@ class _ManagedServerCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               FilledButton.icon(
+                // Arranque deshabilitado si el servicio ya está activo.
                 onPressed: server.isRunning ? null : onStart,
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
@@ -314,6 +322,7 @@ class _ManagedServerCard extends StatelessWidget {
                 label: const Text('Arrancar'),
               ),
               OutlinedButton.icon(
+                // Parada deshabilitada si no hay proceso detectado en ejecución.
                 onPressed: server.isRunning ? onStop : null,
                 icon: const Icon(Icons.stop_circle_outlined),
                 label: const Text('Parar'),
@@ -334,6 +343,7 @@ class _ManagedServerCard extends StatelessWidget {
               ),
               if (server.hasActivePortForward)
                 OutlinedButton.icon(
+                  // Solo se muestra cuando existe una redirección a cerrar.
                   onPressed: onStopRedirect,
                   icon: const Icon(Icons.link_off_outlined),
                   label: const Text('Cerrar redirección'),
@@ -346,6 +356,7 @@ class _ManagedServerCard extends StatelessWidget {
   }
 }
 
+/// Chip compacto para resaltar atributos de estado en la tarjeta.
 class _ChipLabel extends StatelessWidget {
   const _ChipLabel({required this.label, required this.color});
 
@@ -369,6 +380,7 @@ class _ChipLabel extends StatelessWidget {
   }
 }
 
+/// Fila de datos clave/valor para metadatos del servidor.
 class _InfoLine extends StatelessWidget {
   const _InfoLine({required this.label, required this.value});
 

@@ -26,6 +26,7 @@ class RemoteEntriesContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Estado 1: feedback de carga mientras se consulta SFTP.
     if (isLoading) {
       return const Center(
         child: Column(
@@ -39,6 +40,7 @@ class RemoteEntriesContent extends StatelessWidget {
       );
     }
 
+    // Estado 2: error recuperable con botón explícito de reintento.
     if (errorMessage != null) {
       return Center(
         child: Column(
@@ -66,6 +68,7 @@ class RemoteEntriesContent extends StatelessWidget {
       );
     }
 
+    // Estado 3: directorio válido pero sin contenido.
     if (entries.isEmpty) {
       return const Center(
         child: Column(
@@ -87,6 +90,7 @@ class RemoteEntriesContent extends StatelessWidget {
       separatorBuilder: (context, index) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final entry = entries[index];
+        // Solo se ofrece "Descomprimir" en archivos ZIP regulares.
         final isZipFile =
             !entry.isDirectory && entry.name.toLowerCase().endsWith('.zip');
 
@@ -117,6 +121,7 @@ class RemoteEntriesContent extends StatelessWidget {
               PopupMenuButton<EntryAction>(
                 tooltip: 'Acciones',
                 onSelected: (action) => onActionSelected(action, entry),
+                // Se construye dinámicamente para ocultar acciones no aplicables.
                 itemBuilder: (context) => [
                   const PopupMenuItem(
                     value: EntryAction.rename,
@@ -163,6 +168,7 @@ class RemoteEntriesContent extends StatelessWidget {
               ),
             ],
           ),
+          // Navegación directa únicamente cuando la entrada es un directorio.
           onTap: entry.isDirectory ? () => onOpenDirectory(entry) : null,
         );
       },

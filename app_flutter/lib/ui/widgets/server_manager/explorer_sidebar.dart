@@ -38,6 +38,7 @@ class ExplorerSidebar extends StatelessWidget {
             ),
             const Divider(height: 24),
             ...sections.map((section) {
+              // Marca visualmente el botón correspondiente a la sección activa.
               final isSelected = selectedSection == section.label;
 
               return Padding(

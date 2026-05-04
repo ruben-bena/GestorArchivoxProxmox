@@ -54,6 +54,7 @@ class VisualizerSectionPanel extends StatelessWidget {
 
   /// Convierte las entradas en porciones ponderadas para la visualización circular.
   List<_VisualizerSlice> get _slices {
+    // Los enlaces simbólicos se excluyen para no duplicar tamaños ni rutas derivadas.
     final sourceEntries = entries
         .where((entry) => !entry.isSymbolicLink)
         .toList();
@@ -61,6 +62,7 @@ class VisualizerSectionPanel extends StatelessWidget {
       return const [];
     }
 
+    // Orden descendente para que los elementos grandes queden primero en la leyenda.
     final orderedEntries = sourceEntries.toList()
       ..sort((a, b) => ((b.size ?? 0)).compareTo(a.size ?? 0));
 
@@ -71,7 +73,9 @@ class VisualizerSectionPanel extends StatelessWidget {
 
       return _VisualizerSlice(
         entry: entry,
+        // La paleta rota por índice para mantener colores estables aunque haya muchos elementos.
         color: palette[index % palette.length],
+        // Se fuerza peso mínimo 1 para evitar sectores de ángulo cero en elementos sin tamaño.
         weight: (entry.size ?? 0) > 0 ? entry.size!.toDouble() : 1,
       );
     }).toList();
@@ -103,6 +107,7 @@ class VisualizerSectionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final slices = _slices;
+    // El total ignora tamaños nulos/no positivos para reflejar bytes reales.
     final totalBytes = entries.fold<int>(
       0,
       (sum, entry) => sum + ((entry.size ?? 0) > 0 ? entry.size! : 0),
@@ -163,6 +168,7 @@ class VisualizerSectionPanel extends StatelessWidget {
               ],
             ),
             const Divider(height: 24),
+            // El gráfico solo se muestra cuando hay datos válidos y ningún estado transitorio.
             if (!isLoading && errorMessage == null && entries.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
@@ -216,6 +222,7 @@ class VisualizerSectionPanel extends StatelessWidget {
                 ),
               ),
             Expanded(
+              // Se reutiliza el listado estándar para acciones y navegación de entradas.
               child: RemoteEntriesContent(
                 isLoading: isLoading,
                 errorMessage: errorMessage,
@@ -315,10 +322,12 @@ class _DirectoryBaobabPainter extends CustomPainter {
 
     canvas.drawCircle(center, radius - (ringWidth / 2), backgroundPaint);
 
+    // Sin datos: se conserva solo el anillo base como estado neutro.
     if (slices.isEmpty) {
       return;
     }
 
+    // Normaliza cada peso a una fracción del círculo completo.
     final total = slices.fold<double>(0, (sum, slice) => sum + slice.weight);
     var startAngle = _startAtTopRadians;
 
@@ -338,9 +347,11 @@ class _DirectoryBaobabPainter extends CustomPainter {
         paint,
       );
 
+      // El siguiente segmento comienza justo donde termina el actual.
       startAngle += sweep;
     }
 
+    // Disco central decorativo para mejorar legibilidad del total.
     final centerPaint = Paint()..color = const Color(0xFF1F1F1F);
     canvas.drawCircle(center, radius * 0.38, centerPaint);
   }

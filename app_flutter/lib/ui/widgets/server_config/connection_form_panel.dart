@@ -54,6 +54,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
       allowMultiple: false,
       initialDirectory: sshDir,
     );
+    // Solo actualiza el estado cuando el usuario confirma una ruta válida.
     if (result != null && result.files.single.path != null) {
       setState(() => _keyFilePath = result.files.single.path);
     }
@@ -193,6 +194,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
     final port = _portController.text.trim();
     final keyPath = _keyFilePath;
 
+    // Validación mínima para evitar persistir configuraciones incompletas.
     if (configName.isEmpty || host.isEmpty || port.isEmpty || keyPath == null) {
       showFeedbackSnackbar(
         context,
@@ -238,6 +240,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
 
     final parsedTarget = widget.sshConnectionService.parseTarget(hostOrUri);
 
+    // 1) Validar host/URI antes de continuar con operaciones de disco/red.
     if (parsedTarget == null) {
       showFeedbackSnackbar(
         context,
@@ -247,6 +250,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
       return;
     }
 
+    // 2) Exigir clave privada explícita para autenticación SSH.
     if (keyPath == null || keyPath.trim().isEmpty) {
       showFeedbackSnackbar(
         context,
@@ -256,6 +260,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
       return;
     }
 
+    // 3) Resolver puerto final: prioridad al que venga en la URI, luego formulario.
     final selectedPort = parsedTarget.port ?? formPort;
     if (selectedPort == null) {
       showFeedbackSnackbar(
@@ -268,6 +273,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
 
     final target = parsedTarget.copyWith(port: selectedPort);
 
+    // 4) Fallar rápido si la ruta de clave ya no existe en el sistema local.
     if (!File(keyPath).existsSync()) {
       showFeedbackSnackbar(
         context,
@@ -285,6 +291,7 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
         isSuccess: true,
       );
 
+      // Healthcheck remoto: valida credenciales, conectividad y permisos básicos.
       final output = await widget.sshConnectionService.runHealthcheck(
         target: target,
         keyPath: keyPath,
@@ -319,9 +326,11 @@ class ConnectionFormPanelState extends State<ConnectionFormPanel> {
       );
       debugPrint('❌ Error SSH: $error');
     } finally {
+      // Garantiza limpieza visual incluso cuando hay error o retorno temprano.
       widget.onConnectingStateChanged(false);
     }
 
+    // La navegación solo ocurre si la prueba SSH fue correcta y el widget sigue montado.
     if (connectionSucceeded && mounted) {
       await Navigator.of(context).push(
         MaterialPageRoute(

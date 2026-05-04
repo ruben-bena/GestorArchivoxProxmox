@@ -50,6 +50,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
 
   /// Actualiza el estado visual de conexión en progreso.
   void _setConnectingState(bool isConnecting) {
+    // Evita reconstrucciones redundantes cuando el estado no cambia.
     if (_isConnecting == isConnecting) {
       return;
     }
@@ -66,6 +67,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
       body: Stack(
         children: [
           AbsorbPointer(
+            // Bloquea interacción con la pantalla base durante la conexión SSH.
             absorbing: _isConnecting,
             child: const SizedBox.expand(),
           ),
@@ -96,6 +98,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
               ],
             ),
           ),
+          // Overlay modal para comunicar progreso y evitar acciones en paralelo.
           if (_isConnecting)
             const ProcessingOverlay(label: 'Conectando por SSH...'),
         ],
