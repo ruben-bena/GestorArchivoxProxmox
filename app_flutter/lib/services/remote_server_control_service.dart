@@ -62,9 +62,10 @@ class RemoteServerControlService {
           directory: candidate.path,
           serverType: serverType,
         );
-        final isRunning = await _isPortListening(
+        final isRunning = await _isServerProcessRunning(
           client: client,
-          port: detectedPort,
+          directory: candidate.path,
+          serverType: serverType,
         );
 
         servers.add(
@@ -156,20 +157,24 @@ class RemoteServerControlService {
     });
   }
 
-  /// Detiene el proceso que escucha en el puerto detectado del servidor.
+  /// Detiene procesos del proyecto detectados por directorio y stack.
   Future<void> stopServer(ManagedRemoteServer server) async {
     await _withClient((client, sftp) async {
-      final targetPort = server.detectedPort;
+      final escapedDirectory = _escapeForSingleQuotes(server.fullPath);
+      final commandPattern = _resolveCommandPattern(server.type);
       await _runCommand(client, '''
-port=$targetPort
-pids=""
-if command -v lsof >/dev/null 2>&1; then
-  pids=\$(lsof -tiTCP:$targetPort -sTCP:LISTEN 2>/dev/null || true)
-elif command -v fuser >/dev/null 2>&1; then
-  pids=\$(fuser $targetPort/tcp 2>/dev/null || true)
-elif command -v ss >/dev/null 2>&1; then
-  pids=\$(ss -ltnpH 2>/dev/null | sed -nE "s/.*:$targetPort .*pid=([0-9]+).*/\\1/p" | sort -u)
-fi
+target_dir=\$(readlink -f '$escapedDirectory' 2>/dev/null || printf '%s' '$escapedDirectory')
+pids=\$(
+  for proc in /proc/[0-9]*; do
+    pid=\${proc#/proc/}
+    cmd=\$(tr '\\0' ' ' < "\$proc/cmdline" 2>/dev/null || true)
+    [ -z "\$cmd" ] && continue
+    printf '%s' "\$cmd" | grep -Eq '$commandPattern' || continue
+    cwd=\$(readlink -f "\$proc/cwd" 2>/dev/null || true)
+    [ "\$cwd" = "\$target_dir" ] || continue
+    printf '%s\n' "\$pid"
+  done | sort -u
+)
 
 if [ -n "\$pids" ]; then
   kill \$pids 2>/dev/null || true
@@ -324,22 +329,37 @@ printf '%s' "\$port"
     return int.tryParse(output.trim()) ?? serverType.defaultPort;
   }
 
-  /// Comprueba si el puerto remoto está escuchando actualmente.
-  Future<bool> _isPortListening({
+  /// Comprueba si hay un proceso del proyecto ejecutándose en su directorio.
+  Future<bool> _isServerProcessRunning({
     required SSHClient client,
-    required int port,
+    required String directory,
+    required ManagedServerType serverType,
   }) async {
+    final escapedDirectory = _escapeForSingleQuotes(directory);
+    final commandPattern = _resolveCommandPattern(serverType);
     final output = await _runCommand(client, '''
-port=$port
-if command -v ss >/dev/null 2>&1; then
-  ss -tlnH 2>/dev/null | awk '{print \$4}' | grep -E "(^|:)\$port\$" >/dev/null && printf 'running' || printf 'stopped'
-elif command -v netstat >/dev/null 2>&1; then
-  netstat -tln 2>/dev/null | awk '{print \$4}' | grep -E "(^|:)\$port\$" >/dev/null && printf 'running' || printf 'stopped'
-else
-  printf 'stopped'
-fi
+target_dir=\$(readlink -f '$escapedDirectory' 2>/dev/null || printf '%s' '$escapedDirectory')
+running='stopped'
+for proc in /proc/[0-9]*; do
+  cmd=\$(tr '\\0' ' ' < "\$proc/cmdline" 2>/dev/null || true)
+  [ -z "\$cmd" ] && continue
+  printf '%s' "\$cmd" | grep -Eq '$commandPattern' || continue
+  cwd=\$(readlink -f "\$proc/cwd" 2>/dev/null || true)
+  [ "\$cwd" = "\$target_dir" ] || continue
+  running='running'
+  break
+done
+printf '%s' "\$running"
 ''');
     return output.trim() == 'running';
+  }
+
+  /// Expresión regular para identificar procesos por stack.
+  String _resolveCommandPattern(ManagedServerType serverType) {
+    return switch (serverType) {
+      ManagedServerType.nodeJs => r'(^|[[:space:]/])(node|npm|pnpm|yarn|bun)([[:space:]]|$)',
+      ManagedServerType.java => r'(^|[[:space:]/])(java|mvn|gradle|mvnw|gradlew)([[:space:]]|$)',
+    };
   }
 
   /// Construye el script de arranque remoto según tipo de servidor.

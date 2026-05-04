@@ -1,14 +1,14 @@
 [
   {
-    "name": "Rubén",
-    "host": "rbellidonavarro@ieticloudpro.ieti.cat",
-    "port": "20127",
-    "keyPath": "/home/ruben/.ssh/id_rsa"
-  },
-  {
     "name": "prueba",
     "host": "blabla.com",
     "port": "123",
     "keyPath": "/home/ruben/.ssh/id_rsa"
+  },
+  {
+    "name": "Rubén",
+    "host": "rbellidonavarro@ieticloudpro.ieti.cat",
+    "port": "20127",
+    "keyPath": "/home/super/.ssh/id_rsa"
   }
 ]

@@ -10,9 +10,26 @@ class PortForwardingService {
 
   /// Vista de solo lectura de sesiones activas por ruta de servidor remoto.
   Map<String, PortForwardSession> get sessionsByServerPath {
+    _cleanupDeadSessionsSync();
     return Map.unmodifiable(
       _sessions.map((key, value) => MapEntry(key, value.session)),
     );
+  }
+
+  /// Sincroniza sesiones eliminando túneles que ya no estén vivos.
+  Future<void> syncSessions() async {
+    final serverPaths = _sessions.keys.toList(growable: false);
+    for (final serverPath in serverPaths) {
+      final activeSession = _sessions[serverPath];
+      if (activeSession == null) {
+        continue;
+      }
+
+      final exitCode = await _tryGetExitCode(activeSession.process);
+      if (exitCode != null) {
+        _sessions.remove(serverPath);
+      }
+    }
   }
 
   /// Inicia (o reinicia) un túnel SSH para un servidor remoto específico.
@@ -25,7 +42,16 @@ class PortForwardingService {
     required int remotePort,
     required int localPort,
   }) async {
+    await syncSessions();
     await stopPortForward(serverPath);
+
+    if (_sessions.values.any((item) => item.session.localPort == localPort)) {
+      throw Exception(
+        'El puerto local $localPort ya está en uso por otra redirección activa.',
+      );
+    }
+
+    await _ensureLocalPortAvailable(localPort);
 
     final stderrBuffer = StringBuffer();
     final stdoutBuffer = StringBuffer();
@@ -38,9 +64,15 @@ class PortForwardingService {
       '-p',
       '$sshPort',
       '-o',
+      'BatchMode=yes',
+      '-o',
+      'ConnectTimeout=8',
+      '-o',
       'ExitOnForwardFailure=yes',
       '-o',
       'StrictHostKeyChecking=no',
+      '-o',
+      'UserKnownHostsFile=/dev/null',
       '-o',
       'ServerAliveInterval=30',
       '$username@$host',
@@ -49,7 +81,7 @@ class PortForwardingService {
     process.stderr.transform(utf8.decoder).listen(stderrBuffer.write);
     process.stdout.transform(utf8.decoder).listen(stdoutBuffer.write);
 
-    const bootTimeout = Duration(milliseconds: 900);
+    const bootTimeout = Duration(seconds: 4);
     final exitCode = await Future.any<int>([
       process.exitCode,
       Future<int>.delayed(bootTimeout, () => -1),
@@ -74,11 +106,19 @@ class PortForwardingService {
     );
 
     _sessions[serverPath] = (process: process, session: session);
+    process.exitCode.then((_) {
+      final active = _sessions[serverPath];
+      if (active != null && identical(active.process, process)) {
+        _sessions.remove(serverPath);
+      }
+    });
+
     return session;
   }
 
   /// Cierra de forma segura el túnel asociado al servidor indicado.
   Future<void> stopPortForward(String serverPath) async {
+    await syncSessions();
     final activeSession = _sessions.remove(serverPath);
     if (activeSession == null) {
       return;
@@ -102,9 +142,56 @@ class PortForwardingService {
 
   /// Libera todos los túneles activos.
   Future<void> dispose() async {
+    await syncSessions();
     final serverPaths = _sessions.keys.toList(growable: false);
     for (final serverPath in serverPaths) {
       await stopPortForward(serverPath);
+    }
+  }
+
+  /// Limpieza rápida no bloqueante de sesiones muertas.
+  void _cleanupDeadSessionsSync() {
+    final serverPaths = _sessions.keys.toList(growable: false);
+    for (final serverPath in serverPaths) {
+      final activeSession = _sessions[serverPath];
+      if (activeSession == null) {
+        continue;
+      }
+
+      activeSession.process.exitCode.then((_) {
+        final current = _sessions[serverPath];
+        if (current != null && identical(current.process, activeSession.process)) {
+          _sessions.remove(serverPath);
+        }
+      });
+    }
+  }
+
+  /// Devuelve el código de salida si el proceso terminó; `null` si sigue vivo.
+  Future<int?> _tryGetExitCode(Process process) async {
+    final exitCode = await Future.any<int>([
+      process.exitCode,
+      Future<int>.delayed(Duration.zero, () => -1),
+    ]);
+
+    return exitCode == -1 ? null : exitCode;
+  }
+
+  /// Valida que un puerto local esté libre antes de abrir el túnel.
+  Future<void> _ensureLocalPortAvailable(int localPort) async {
+    if (localPort < 1 || localPort > 65535) {
+      throw Exception('Puerto local inválido: $localPort.');
+    }
+
+    ServerSocket? probe;
+    try {
+      probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, localPort);
+    } on SocketException {
+      throw Exception(
+        'El puerto local $localPort ya está ocupado por otro proceso.',
+      );
+    } finally {
+      await probe?.close();
     }
   }
 }

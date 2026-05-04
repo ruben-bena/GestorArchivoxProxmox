@@ -158,6 +158,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
         entries: targetEntries,
         searchDepth: _serverDiscoveryDepth,
       );
+      await _portForwardingService.syncSessions();
 
       if (!mounted || requestId != _managedServersRequestId) {
         return;
