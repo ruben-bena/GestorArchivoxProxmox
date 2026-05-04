@@ -9,8 +9,10 @@ class ManagedServersSectionPanel extends StatelessWidget {
     required this.isLoading,
     required this.errorMessage,
     required this.servers,
+    required this.discoveryDepth,
     required this.onRefresh,
     required this.onRetry,
+    required this.onDiscoveryDepthChanged,
     required this.onStartServer,
     required this.onStopServer,
     required this.onRestartServer,
@@ -22,8 +24,10 @@ class ManagedServersSectionPanel extends StatelessWidget {
   final bool isLoading;
   final String? errorMessage;
   final List<ManagedRemoteServer> servers;
+  final int discoveryDepth;
   final VoidCallback onRefresh;
   final VoidCallback onRetry;
+  final ValueChanged<int> onDiscoveryDepthChanged;
   final ValueChanged<ManagedRemoteServer> onStartServer;
   final ValueChanged<ManagedRemoteServer> onStopServer;
   final ValueChanged<ManagedRemoteServer> onRestartServer;
@@ -72,6 +76,49 @@ class ManagedServersSectionPanel extends StatelessWidget {
                   onPressed: isLoading ? null : onRefresh,
                   tooltip: 'Actualizar lista',
                   icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text(
+                  'Profundidad de búsqueda',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(width: 10),
+                IconButton(
+                  onPressed: isLoading || discoveryDepth <= 0
+                      ? null
+                      : () => onDiscoveryDepthChanged(discoveryDepth - 1),
+                  tooltip: 'Reducir profundidad',
+                  icon: const Icon(Icons.remove_circle_outline),
+                ),
+                Container(
+                  width: 40,
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$discoveryDepth',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: isLoading || discoveryDepth >= 10
+                      ? null
+                      : () => onDiscoveryDepthChanged(discoveryDepth + 1),
+                  tooltip: 'Aumentar profundidad',
+                  icon: const Icon(Icons.add_circle_outline),
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    '0 = solo directorio actual',
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -125,16 +172,16 @@ class ManagedServersSectionPanel extends StatelessWidget {
     }
 
     if (servers.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.storage_outlined, size: 48, color: Colors.white30),
-            SizedBox(height: 12),
+            const Icon(Icons.storage_outlined, size: 48, color: Colors.white30),
+            const SizedBox(height: 12),
             Text(
-              'No se detectaron proyectos Java o NodeJS en este nivel.',
+              'No se detectaron proyectos Java o NodeJS hasta profundidad $discoveryDepth.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white60),
+              style: const TextStyle(color: Colors.white60),
             ),
           ],
         ),

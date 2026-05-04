@@ -65,6 +65,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
   String? _errorMessage;
   String? _managedServersErrorMessage;
   int _managedServersRequestId = 0;
+  int _serverDiscoveryDepth = 1;
 
   @override
   void initState() {
@@ -155,6 +156,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
       final servers = await _serverControlService.discoverServers(
         currentDirectory: targetDirectory,
         entries: targetEntries,
+        searchDepth: _serverDiscoveryDepth,
       );
 
       if (!mounted || requestId != _managedServersRequestId) {
@@ -845,6 +847,20 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
     return value != null && value >= 1 && value <= 65535;
   }
 
+  /// Actualiza la profundidad de escaneo de servidores y relanza detección.
+  void _updateServerDiscoveryDepth(int depth) {
+    final normalizedDepth = depth.clamp(0, 10).toInt();
+    if (normalizedDepth == _serverDiscoveryDepth) {
+      return;
+    }
+
+    setState(() {
+      _serverDiscoveryDepth = normalizedDepth;
+    });
+
+    _refreshManagedServers();
+  }
+
   /// Muestra opciones para subir archivos o carpeta.
   Future<void> _showUploadOptions() async {
     final action = await showModalBottomSheet<_UploadAction>(
@@ -999,8 +1015,10 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           isLoading: _isLoadingManagedServers,
           errorMessage: _managedServersErrorMessage,
           servers: _managedServers,
+          discoveryDepth: _serverDiscoveryDepth,
           onRefresh: _refreshManagedServers,
           onRetry: _refreshManagedServers,
+          onDiscoveryDepthChanged: _updateServerDiscoveryDepth,
           onStartServer: _startManagedServer,
           onStopServer: _stopManagedServer,
           onRestartServer: _restartManagedServer,

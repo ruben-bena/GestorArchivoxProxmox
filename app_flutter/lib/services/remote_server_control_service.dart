@@ -20,27 +20,34 @@ class RemoteServerControlService {
   final int port;
   final String keyPath;
 
-  /// Inspecciona directorio actual y subdirectorios inmediatos para detectar servidores.
+  /// Inspecciona el directorio actual y subdirectorios hasta una profundidad configurable.
   Future<List<ManagedRemoteServer>> discoverServers({
     required String currentDirectory,
     required List<RemoteEntry> entries,
+    int searchDepth = 1,
   }) async {
     return _withClient((client, sftp) async {
       final servers = <ManagedRemoteServer>[];
       final inspectedPaths = <String>{};
-      final candidatePaths = <({String name, String path})>[
-        (name: _basename(currentDirectory), path: currentDirectory),
-        ...entries
-            .where((entry) => entry.isDirectory && !entry.isSymbolicLink)
-            .map((entry) => (name: entry.name, path: entry.fullPath)),
-      ];
+      final candidatePaths = await _collectCandidateDirectories(
+        sftp: sftp,
+        rootDirectory: currentDirectory,
+        rootEntries: entries,
+        maxDepth: searchDepth,
+      );
 
       for (final candidate in candidatePaths) {
         if (!inspectedPaths.add(candidate.path)) {
           continue;
         }
 
-        final markerFiles = await _listDirectoryNames(sftp, candidate.path);
+        Set<String> markerFiles;
+        try {
+          markerFiles = await _listDirectoryNames(sftp, candidate.path);
+        } catch (_) {
+          continue;
+        }
+
         final serverType = _resolveServerType(markerFiles);
         if (serverType == null) {
           continue;
@@ -86,6 +93,60 @@ class RemoteServerControlService {
 
       return servers;
     });
+  }
+
+  /// Recolecta directorios candidatos desde la raíz hasta `maxDepth` niveles.
+  Future<List<({String name, String path})>> _collectCandidateDirectories({
+    required SftpClient sftp,
+    required String rootDirectory,
+    required List<RemoteEntry> rootEntries,
+    required int maxDepth,
+  }) async {
+    final normalizedDepth = maxDepth < 0 ? 0 : maxDepth;
+    final pending = <({String name, String path, int depth})>[
+      (name: _basename(rootDirectory), path: rootDirectory, depth: 0),
+    ];
+    final visitedPaths = <String>{rootDirectory};
+    final candidates = <({String name, String path})>[];
+
+    if (normalizedDepth >= 1) {
+      for (final entry in rootEntries) {
+        if (!entry.isDirectory || entry.isSymbolicLink) {
+          continue;
+        }
+        if (!visitedPaths.add(entry.fullPath)) {
+          continue;
+        }
+        pending.add((name: entry.name, path: entry.fullPath, depth: 1));
+      }
+    }
+
+    for (var index = 0; index < pending.length; index++) {
+      final current = pending[index];
+      candidates.add((name: current.name, path: current.path));
+
+      if (current.depth >= normalizedDepth) {
+        continue;
+      }
+
+      List<({String name, String path})> children;
+      try {
+        children = await _listChildDirectories(sftp, current.path);
+      } catch (_) {
+        continue;
+      }
+
+      for (final child in children) {
+        if (!visitedPaths.add(child.path)) {
+          continue;
+        }
+        pending.add(
+          (name: child.name, path: child.path, depth: current.depth + 1),
+        );
+      }
+    }
+
+    return candidates;
   }
 
   /// Arranca un servidor remoto según su tipo y estructura detectada.
@@ -161,6 +222,27 @@ fi
   ) async {
     final names = await sftp.listdir(directory);
     return names.map((item) => item.filename).toSet();
+  }
+
+  /// Lista subdirectorios directos sin seguir enlaces simbólicos.
+  Future<List<({String name, String path})>> _listChildDirectories(
+    SftpClient sftp,
+    String directory,
+  ) async {
+    final names = await sftp.listdir(directory);
+    return names
+        .where(
+          (item) =>
+              item.filename != '.' &&
+              item.filename != '..' &&
+              item.attr.isDirectory &&
+              !item.attr.isSymbolicLink,
+        )
+        .map(
+          (item) =>
+              (name: item.filename, path: _joinRemotePath(directory, item.filename)),
+        )
+        .toList(growable: false);
   }
 
   /// Resuelve tipo de servidor a partir de archivos marcadores.
@@ -323,6 +405,15 @@ fi
     }
 
     return trimmed.substring(slashIndex + 1);
+  }
+
+  /// Une segmentos de ruta remota con semántica POSIX.
+  String _joinRemotePath(String parent, String child) {
+    if (parent == '/') {
+      return '/$child';
+    }
+
+    return '$parent/$child';
   }
 
   /// Escapa comillas simples para scripts shell embebidos.
