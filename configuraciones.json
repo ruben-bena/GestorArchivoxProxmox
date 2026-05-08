@@ -9,6 +9,6 @@
     "name": "Rubén",
     "host": "rbellidonavarro@ieticloudpro.ieti.cat",
     "port": "20127",
-    "keyPath": "/home/super/.ssh/id_rsa"
+    "keyPath": "/home/ruben/.ssh/id_rsa"
   }
 ]

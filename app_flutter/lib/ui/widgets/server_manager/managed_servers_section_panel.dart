@@ -80,51 +80,6 @@ class ManagedServersSectionPanel extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Text(
-                  'Profundidad de búsqueda',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(width: 10),
-                IconButton(
-                  onPressed: isLoading || discoveryDepth <= 0
-                      ? null
-                      // Impide profundidades negativas al decrementar.
-                      : () => onDiscoveryDepthChanged(discoveryDepth - 1),
-                  tooltip: 'Reducir profundidad',
-                  icon: const Icon(Icons.remove_circle_outline),
-                ),
-                Container(
-                  width: 40,
-                  alignment: Alignment.center,
-                  child: Text(
-                    '$discoveryDepth',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: isLoading || discoveryDepth >= 10
-                      ? null
-                      // Limita la exploración para evitar búsquedas excesivas.
-                      : () => onDiscoveryDepthChanged(discoveryDepth + 1),
-                  tooltip: 'Aumentar profundidad',
-                  icon: const Icon(Icons.add_circle_outline),
-                ),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    '0 = solo directorio actual',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
             const Divider(height: 24),
             Expanded(child: _buildBody()),
           ],
@@ -183,7 +138,7 @@ class ManagedServersSectionPanel extends StatelessWidget {
             const Icon(Icons.storage_outlined, size: 48, color: Colors.white30),
             const SizedBox(height: 12),
             Text(
-              'No se detectaron proyectos Java o NodeJS hasta profundidad $discoveryDepth.',
+              'No se detectaron proyectos Java o NodeJS.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white60),
             ),
