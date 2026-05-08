@@ -516,7 +516,7 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
           builder: (context) {
             return AlertDialog(
               backgroundColor: const Color(0xFF1F1F1F),
-              title: const Text('Información y permisos'),
+              title: const Text('Información'),
               content: SizedBox(
                 width: 420,
                 child: Column(
@@ -532,22 +532,6 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
                           '${_formatService.formatPermissionString(latestEntry.modeValue)} (${_formatService.formatPermissionOctal(latestEntry.modeValue)})',
                     ),
                     InfoRow(
-                      label: 'Usuario propietario',
-                      value:
-                          _formatService.extractOwnerFromLongName(
-                            latestEntry.longName,
-                          ) ??
-                          (latestEntry.userId?.toString() ?? 'No disponible'),
-                    ),
-                    InfoRow(
-                      label: 'Grupo propietario',
-                      value:
-                          _formatService.extractGroupFromLongName(
-                            latestEntry.longName,
-                          ) ??
-                          (latestEntry.groupId?.toString() ?? 'No disponible'),
-                    ),
-                    InfoRow(
                       label: 'Tamaño',
                       value: _formatService.formatSize(latestEntry.size),
                     ),
@@ -556,12 +540,6 @@ class _ServerManagerScreenState extends State<ServerManagerScreen> {
                       value: _formatService.formatUnixTime(
                         latestEntry.modifyTime,
                       ),
-                    ),
-                    InfoRow(
-                      label: 'Detalle remoto',
-                      value: latestEntry.longName.isEmpty
-                          ? 'No disponible'
-                          : latestEntry.longName,
                     ),
                   ],
                 ),
